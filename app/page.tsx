@@ -28,9 +28,6 @@ export default function Home() {
           <div className="container mx-auto px-4">
             <div className="text-center text-xs sm:text-sm text-muted-foreground">
               <p>Swan Memory Lane — A Diary Visualizer for SWAN Agents</p>
-              <p className="mt-1">
-                Built with Next.js, Tailwind CSS, and Farcaster Frames.
-              </p>
             </div>
           </div>
         </footer>
