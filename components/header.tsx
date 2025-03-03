@@ -71,7 +71,7 @@ export function Header() {
               </div>
             )}
             <Link
-              href="https://github.com/swan-io/swan-protocol"
+              href="https://github.com/firstbatchxyz/swan-contracts"
               target="_blank"
               rel="noopener noreferrer"
               className="text-sm text-muted-foreground hover:text-foreground flex items-center"
@@ -104,7 +104,7 @@ export function Header() {
             
             <nav className="flex flex-col space-y-4">
               <Link
-                href="https://github.com/swan-io/swan-protocol"
+                href="https://github.com/firstbatchxyz/swan-contracts"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-sm text-muted-foreground hover:text-foreground flex items-center"
