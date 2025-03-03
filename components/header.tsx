@@ -42,27 +42,34 @@ export function Header() {
           </div>
           
           {/* Current Agent Indicator - Desktop */}
-          {currentAgent && (
-            <div className="hidden md:flex items-center gap-2 text-xs text-muted-foreground">
-              <User className="h-3 w-3" />
-              <span className="font-medium">{currentAgent.name}</span>
-              <span className="font-mono bg-muted/30 px-1.5 py-0.5 rounded text-[10px]">
-                {truncateString(currentAgent.address, 6)}
-              </span>
-            </div>
-          )}
           
-          {/* Mobile menu button */}
-          <button 
-            className="md:hidden text-muted-foreground hover:text-foreground"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
-          >
-            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </button>
+          
+          {/* Mobile controls */}
+          <div className="md:hidden flex items-center gap-2">
+            <ThemeToggle />
+            <button 
+              className="text-muted-foreground"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
+            >
+              {mobileMenuOpen ? 
+                <X className="h-5 w-5 hover:text-foreground" /> : 
+                <Menu className="h-5 w-5 hover:text-foreground" />
+              }
+            </button>
+          </div>
           
           {/* Desktop navigation */}
           <div className="hidden md:flex items-center gap-4">
+            {currentAgent && (
+              <div className="hidden md:flex items-center gap-2 text-xs text-muted-foreground">
+                <User className="h-3 w-3" />
+                <span className="font-medium">{currentAgent.name}</span>
+                <span className="font-mono bg-muted/30 px-1.5 py-0.5 rounded text-[10px]">
+                  {truncateString(currentAgent.address, 6)}
+                </span>
+              </div>
+            )}
             <Link
               href="https://github.com/swan-io/swan-protocol"
               target="_blank"
@@ -72,26 +79,6 @@ export function Header() {
               <GitHubLogoIcon className="mr-1 h-4 w-4" />
               <span>SWAN Protocol</span>
             </Link>
-            
-            <Link
-              href="https://warpcast.com/~/developers/frames"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm text-purple-500 hover:text-purple-400 flex items-center font-medium"
-            >
-              <span className="mr-1 text-lg">⌘</span>
-              <span>Frame Validator</span>
-            </Link>
-            
-            <Link
-              href="https://docs.farcaster.xyz/learn/what-is-farcaster"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm text-muted-foreground hover:text-foreground"
-            >
-              Farcaster Docs
-            </Link>
-            
             <ThemeToggle />
           </div>
         </div>
@@ -124,32 +111,16 @@ export function Header() {
                 onClick={() => setMobileMenuOpen(false)}
               >
                 <GitHubLogoIcon className="mr-2 h-4 w-4" />
-                <span>SWAN Protocol</span>
+                <span className='mr-4'>SWAN Protocol</span>
+                
               </Link>
               
-              <Link
-                href="https://warpcast.com/~/developers/frames"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-purple-500 hover:text-purple-400 flex items-center font-medium"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                <span className="mr-2 text-lg">⌘</span>
-                <span>Frame Validator</span>
-              </Link>
               
-              <Link
-                href="https://docs.farcaster.xyz/learn/what-is-farcaster"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-muted-foreground hover:text-foreground"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Farcaster Docs
-              </Link>
+              
+              
               
               <div className="pt-2">
-                <ThemeToggle />
+                
               </div>
             </nav>
           </div>
