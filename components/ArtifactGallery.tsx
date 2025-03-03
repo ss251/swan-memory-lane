@@ -4,16 +4,10 @@ import React, { useState, useEffect } from 'react';
 import { useSwanContext } from '@/lib/providers/SwanProvider';
 import { Artifact, useLoadMoreArtifacts } from '@/lib/hooks/useArtifacts';
 import { formatDate } from '@/lib/utils';
-import { ShoppingBag, Calendar, Coins, ExternalLink, AlertTriangle, RefreshCw, ChevronLeft, ChevronRight, Info } from 'lucide-react';
+import { ShoppingBag, Calendar, Coins, ExternalLink, AlertTriangle, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { Button } from "@/components/ui/button";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { Badge } from '@/components/ui/badge';
 
 // Number of artifacts to show per page in the UI
@@ -331,26 +325,6 @@ export function ArtifactGallery() {
           </div>
         )
       )}
-      
-      {/* Info tooltip about loading artifacts */}
-      <div className="mt-8 flex justify-end">
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <Info className="h-4 w-4 text-muted-foreground" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent align="end" className="max-w-sm">
-              <p className="text-sm">
-                Artifacts are loaded in batches of 10 rounds at a time. 
-                The UI shows {ARTIFACTS_PER_PAGE} artifacts per page from all loaded rounds.
-                Use the pagination controls to view more artifacts.
-              </p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      </div>
     </div>
   );
 } 
