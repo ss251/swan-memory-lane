@@ -379,10 +379,17 @@ async function fetchDiaryEntry(agentAddress: string, round: number): Promise<Dia
 function extractRelevantContent(fullContent: string): string {
   // Extract content between <observe> and </observe> tags
   let content = '';
+
+  // Try to extract <character_analysis> section
+  const characterAnalysisMatch = /<character_analysis>([\s\S]*?)<\/character_analysis>/i.exec(fullContent);
+  if (characterAnalysisMatch && characterAnalysisMatch[1]) {
+    content += characterAnalysisMatch[1].trim();
+  }
   
   // Try to extract <observe> section
   const observeMatch = /<observe>([\s\S]*?)<\/observe>/i.exec(fullContent);
   if (observeMatch && observeMatch[1]) {
+    if (content) content += '\n\n';
     content += observeMatch[1].trim();
   }
   
