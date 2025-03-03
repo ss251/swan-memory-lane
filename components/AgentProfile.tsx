@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useSwanContext } from '@/lib/providers/SwanProvider';
 import { formatDate, truncateString } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 
 // Function to parse and format agent description
 const formatAgentDescription = (description: string) => {
@@ -194,14 +195,15 @@ export function AgentProfile() {
               <span>{copied ? 'Copied!' : 'Copy'}</span>
             </button>
             
-            <button 
-              className="inline-flex items-center text-primary hover:text-primary/80 text-xs"
-              onClick={() => window.open(`https://basescan.org/address/${currentAgent.address}`, '_blank')}
-              title="View on BaseScan"
+            <Button 
+              variant="outline" 
+              size="sm"
+              className="ml-2"
+              onClick={() => window.open(`https://base.blockscout.com/address/${currentAgent.address}`, '_blank')}
             >
-              <ExternalLink className="h-3 w-3 mr-1" />
-              <span>BaseScan</span>
-            </button>
+              <ExternalLink className="h-4 w-4 mr-2" />
+              View on Blockscout
+            </Button>
           </div>
         </div>
       </div>
