@@ -89,13 +89,6 @@ export function AgentSearch() {
       {!isValidAddress && (
         <p className="text-red-500 text-xs">Please enter a valid Ethereum address (0x...)</p>
       )}
-      
-      {isLoading && (
-        <p className="text-xs text-muted-foreground flex items-center">
-          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-          Loading agent data...
-        </p>
-      )}
     </div>
   );
 } 
