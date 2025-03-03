@@ -1,20 +1,98 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useSwanContext } from '@/lib/providers/SwanProvider';
-import { formatDate, truncateString } from '@/lib/utils';
+import { motion } from 'framer-motion';
 import { 
   User, 
+  Copy, 
+  Check, 
+  Book, 
+  Activity, 
+  Target,
   Calendar, 
   Wallet, 
   Info, 
   Tag, 
   Clock, 
-  ExternalLink,
-  Copy,
-  Check
+  ExternalLink
 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { useSwanContext } from '@/lib/providers/SwanProvider';
+import { formatDate, truncateString } from '@/lib/utils';
+
+// Function to parse and format agent description
+const formatAgentDescription = (description: string) => {
+  // Check if description contains XML-like tags
+  if (!description.includes('<') || !description.includes('>')) {
+    return <p className="mt-1 text-sm text-muted-foreground">{description}</p>;
+  }
+  
+  // Helper function to extract content between tags
+  const extractContent = (tag: string) => {
+    const startTag = `<${tag}>`;
+    const endTag = `</${tag}>`;
+    const startIndex = description.indexOf(startTag);
+    const endIndex = description.indexOf(endTag);
+    
+    if (startIndex !== -1 && endIndex !== -1) {
+      return description.substring(startIndex + startTag.length, endIndex).trim();
+    }
+    return null;
+  };
+  
+  // Extract different sections
+  const backstory = extractContent('backstory');
+  const behaviour = extractContent('behaviour');
+  const objective = extractContent('objective');
+  
+  if (!backstory && !behaviour && !objective) {
+    return <p className="mt-1 text-sm text-muted-foreground">{description}</p>;
+  }
+  
+  return (
+    <div className="space-y-4 mt-2">
+      {backstory && (
+        <div className="bg-muted/30 rounded-lg p-3">
+          <div className="flex items-center text-sm font-medium mb-2 text-primary">
+            <Book className="h-4 w-4 mr-2" />
+            Backstory
+          </div>
+          <p className="text-sm text-muted-foreground">{backstory}</p>
+        </div>
+      )}
+      
+      {behaviour && (
+        <div className="bg-muted/30 rounded-lg p-3">
+          <div className="flex items-center text-sm font-medium mb-2 text-amber-500">
+            <Activity className="h-4 w-4 mr-2" />
+            Behaviour
+          </div>
+          <p className="text-sm text-muted-foreground">{behaviour}</p>
+        </div>
+      )}
+      
+      {objective && (
+        <div className="bg-muted/30 rounded-lg p-3">
+          <div className="flex items-center text-sm font-medium mb-2 text-emerald-500">
+            <Target className="h-4 w-4 mr-2" />
+            Objectives
+          </div>
+          <div className="text-sm text-muted-foreground">
+            {/* Handle bullet points in objectives */}
+            {objective.includes('-') ? (
+              <ul className="list-disc pl-5 space-y-1">
+                {objective.split('-').filter(Boolean).map((item, i) => (
+                  <li key={i}>{item.trim()}</li>
+                ))}
+              </ul>
+            ) : (
+              <p>{objective}</p>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 export function AgentProfile() {
   const { currentAgent, isLoading, isArtifactsLoading, isDiaryLoading } = useSwanContext();
@@ -133,9 +211,7 @@ export function AgentProfile() {
           <Info className="h-4 w-4 mr-2 text-muted-foreground" />
           Description
         </h3>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {currentAgent.description}
-        </p>
+        {formatAgentDescription(currentAgent.description)}
       </div>
       
       <div className="grid grid-cols-1 xs:grid-cols-2 gap-3 sm:gap-4 mt-6">

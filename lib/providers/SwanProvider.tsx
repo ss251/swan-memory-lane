@@ -31,6 +31,7 @@ type SwanContextType = {
   refreshAgentData: () => Promise<void>;
   loadAgentByAddress: (address: string) => void;
   currentAgentAddress: string;
+  setDiaryEntries: (entries: DiaryEntry[]) => void;
 };
 
 // Create the context
@@ -191,6 +192,27 @@ export const SwanProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return Promise.resolve();
   };
 
+  // Function to update diary entries (useful for loading more)
+  const setDiaryEntries = (entries: DiaryEntry[]) => {
+    if (!currentAgent) return;
+    
+    // Update the current agent with new diary entries
+    const updatedAgent = {
+      ...currentAgent,
+      diaryEntries: entries
+    };
+    
+    // Update current agent
+    setCurrentAgent(updatedAgent);
+    
+    // Also update in the agents list
+    setAgents(prevAgents => {
+      return prevAgents.map(agent => 
+        agent.id === currentAgent.id ? updatedAgent : agent
+      );
+    });
+  };
+
   // Context value
   const value = {
     agents,
@@ -202,7 +224,8 @@ export const SwanProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     selectAgent,
     refreshAgentData,
     loadAgentByAddress,
-    currentAgentAddress
+    currentAgentAddress,
+    setDiaryEntries
   };
 
   return <SwanContext.Provider value={value}>{children}</SwanContext.Provider>;

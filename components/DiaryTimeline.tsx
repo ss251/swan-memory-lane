@@ -2,11 +2,12 @@
 
 import React, { useState } from 'react';
 import { useSwanContext } from '@/lib/providers/SwanProvider';
-import { DiaryEntry as DiaryEntryType } from '@/lib/hooks/useAgentData';
+import { DiaryEntry as DiaryEntryType, fetchMoreDiaryEntries } from '@/lib/hooks/useAgentData';
 import { formatDate, getSentimentColor } from '@/lib/utils';
-import { Calendar, CalendarDays, ChevronDown, ChevronUp, Heart, Clock } from 'lucide-react';
+import { Calendar, CalendarDays, ChevronDown, ChevronUp, Heart, Clock, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { Button } from "@/components/ui/button";
 
 const DiaryEntry = ({ entry, isFirst }: { entry: DiaryEntryType; isFirst: boolean }) => {
   const [expanded, setExpanded] = useState(isFirst);
@@ -138,12 +139,36 @@ const LoadingEntry = ({ index }: { index: number }) => (
 );
 
 export function DiaryTimeline() {
-  const { currentAgent, isLoading, isDiaryLoading } = useSwanContext();
+  const { currentAgent, isLoading, isDiaryLoading, setDiaryEntries } = useSwanContext();
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   
-  // Sort diary entries by round in ascending order (oldest first)
+  // Sort diary entries by round in descending order (newest first)
   const sortedDiaryEntries = currentAgent?.diaryEntries 
-    ? [...currentAgent.diaryEntries].sort((a, b) => a.round - b.round) 
+    ? [...currentAgent.diaryEntries].sort((a, b) => b.round - a.round) 
     : [];
+  
+  // Function to load more diary entries
+  const handleLoadMore = async () => {
+    if (!currentAgent || isLoadingMore) return;
+    
+    setIsLoadingMore(true);
+    try {
+      const newEntries = await fetchMoreDiaryEntries(
+        currentAgent.address, 
+        currentAgent.diaryEntries,
+        5 // Fetch 5 more entries
+      );
+      
+      if (newEntries.length > 0 && setDiaryEntries) {
+        // Add the new entries to the existing ones
+        setDiaryEntries([...currentAgent.diaryEntries, ...newEntries]);
+      }
+    } catch (error) {
+      console.error('Error loading more diary entries:', error);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  };
   
   if (isLoading) {
     return (
@@ -188,13 +213,31 @@ export function DiaryTimeline() {
           </>
         ) : sortedDiaryEntries.length > 0 ? (
           // Show diary entries when loaded
-          sortedDiaryEntries.map((entry, index) => (
-            <DiaryEntry 
-              key={`entry-${index}-${entry.round}`}
-              entry={entry} 
-              isFirst={index === 0} 
-            />
-          ))
+          <>
+            {sortedDiaryEntries.map((entry, index) => (
+              <DiaryEntry 
+                key={`entry-${index}-${entry.round}`}
+                entry={entry} 
+                isFirst={index === 0} 
+              />
+            ))}
+            
+            {/* Load more button */}
+            <div className="text-center mt-6">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleLoadMore}
+                disabled={isLoadingMore}
+              >
+                {isLoadingMore ? (
+                  <><RefreshCw className="h-4 w-4 mr-2 animate-spin" /> Loading more entries...</>
+                ) : (
+                  <>Load earlier entries</>
+                )}
+              </Button>
+            </div>
+          </>
         ) : (
           // Show empty state if no entries
           <div className="text-center p-4 sm:p-6 border border-dashed rounded-lg">

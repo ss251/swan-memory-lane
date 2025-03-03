@@ -115,7 +115,9 @@ export function ArtifactGallery() {
   const { 
     data: infiniteArtifacts, 
     isLoading: isArtifactsLoading,
-    fetchNextPage
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage
   } = useLoadMoreArtifacts();
   const [currentPage, setCurrentPage] = useState(0);
   const [totalArtifacts, setTotalArtifacts] = useState(0);
@@ -125,11 +127,19 @@ export function ArtifactGallery() {
   
   // Compute combined artifacts from both sources (infinite query and current agent)
   useEffect(() => {
+    console.log("Processing artifacts data:", { 
+      infiniteArtifacts: infiniteArtifacts?.pages?.length,
+      currentAgent: !!currentAgent
+    });
+
     const artifactsFromPages = infiniteArtifacts?.pages
       ? infiniteArtifacts.pages.flatMap(page => page.artifacts)
       : [];
       
+    console.log(`Found ${artifactsFromPages.length} artifacts from infinite query`);
+      
     const agentArtifacts = currentAgent?.artifacts || [];
+    console.log(`Found ${agentArtifacts.length} artifacts from current agent`);
     
     // Combine artifacts from both sources, eliminate duplicates by address
     const uniqueArtifacts = [...artifactsFromPages];
@@ -144,11 +154,11 @@ export function ArtifactGallery() {
     // Sort artifacts by round, ascending (oldest first)
     const sortedArtifacts = [...uniqueArtifacts].sort((a, b) => a.round - b.round);
     
+    console.log(`Total unique artifacts after combining: ${uniqueArtifacts.length}`);
+    console.log(`Setting ${sortedArtifacts.length} sorted artifacts`);
+    
     setAllArtifacts(sortedArtifacts);
     setTotalArtifacts(sortedArtifacts.length);
-    
-    // Reset to first page when artifacts change
-    setCurrentPage(0);
   }, [infiniteArtifacts?.pages, currentAgent?.artifacts]);
   
   // Get artifacts for the current page
@@ -171,12 +181,16 @@ export function ArtifactGallery() {
   
   // Function to load more artifacts
   const handleLoadMore = () => {
-    if (infiniteArtifacts?.pages) {
-      const lastPage = infiniteArtifacts.pages[infiniteArtifacts.pages.length - 1];
-      if (lastPage) {
-        console.log('Loading more artifacts...');
-        fetchNextPage();
-      }
+    console.log('handleLoadMore called', { hasNextPage, isFetchingNextPage });
+    if (hasNextPage && !isFetchingNextPage) {
+      console.log('Fetching next page of artifacts');
+      fetchNextPage();
+    } else {
+      console.log('Cannot fetch next page:', { 
+        hasNextPage, 
+        isFetchingNextPage, 
+        infinitePagesCount: infiniteArtifacts?.pages?.length || 0 
+      });
     }
   };
   
@@ -184,9 +198,6 @@ export function ArtifactGallery() {
   const handleRetryEarlierRounds = () => {
     fetchNextPage();
   };
-  
-  // Show retry button when no artifacts are loaded and we're not currently loading
-  const showRetryButton = !isArtifactsLoading && allArtifacts.length === 0;
   
   if (isLoading) {
     return (
@@ -283,10 +294,14 @@ export function ArtifactGallery() {
                 variant="outline" 
                 size="sm" 
                 onClick={handleLoadMore}
-                disabled={isArtifactsLoading}
+                disabled={isArtifactsLoading || isFetchingNextPage || !hasNextPage}
               >
-                {isArtifactsLoading ? (
+                {isFetchingNextPage ? (
                   <><RefreshCw className="h-4 w-4 mr-2 animate-spin" /> Loading more artifacts...</>
+                ) : isArtifactsLoading ? (
+                  <><RefreshCw className="h-4 w-4 mr-2 animate-spin" /> Loading...</>
+                ) : !hasNextPage ? (
+                  <>No more artifacts to load</>
                 ) : (
                   <>Load more artifacts</>
                 )}
@@ -294,18 +309,7 @@ export function ArtifactGallery() {
             </div>
           )}
         </>
-      ) : showRetryButton ? (
-        <div className="text-center py-12 border rounded-lg">
-          <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-          <h3 className="text-lg font-medium">No artifacts found</h3>
-          <p className="text-sm text-muted-foreground mb-4">
-            Try searching earlier rounds to find artifacts.
-          </p>
-          <Button onClick={handleRetryEarlierRounds} disabled={isArtifactsLoading}>
-            <RefreshCw className="h-4 w-4 mr-2" /> Search Earlier Rounds
-          </Button>
-        </div>
-      ) : (
+      ) : isArtifactsLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           <ArtifactCardSkeleton index={0} />
           <ArtifactCardSkeleton index={1} />
@@ -314,6 +318,19 @@ export function ArtifactGallery() {
           <ArtifactCardSkeleton index={4} />
           <ArtifactCardSkeleton index={5} />
         </div>
+      ) : (
+        !isArtifactsLoading && !isFetchingNextPage && displayedArtifacts.length === 0 && (
+          <div className="text-center py-12 border rounded-lg">
+            <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+            <h3 className="text-lg font-medium">No artifacts found</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Try searching earlier rounds to find artifacts.
+            </p>
+            <Button onClick={handleRetryEarlierRounds} disabled={isArtifactsLoading || isFetchingNextPage}>
+              <RefreshCw className="h-4 w-4 mr-2" /> Search Earlier Rounds
+            </Button>
+          </div>
+        )
       )}
       
       {/* Info tooltip about loading artifacts */}

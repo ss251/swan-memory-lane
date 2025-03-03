@@ -188,6 +188,49 @@ export function useAgentData(agentAddress = DEFAULT_AGENT_ADDRESS) {
   });
 }
 
+// Function to fetch additional diary entries (to be used in DiaryTimeline)
+export async function fetchMoreDiaryEntries(
+  agentAddress: string, 
+  currentEntries: DiaryEntry[], 
+  maxAdditionalEntries = 5
+): Promise<DiaryEntry[]> {
+  try {
+    console.log(`Fetching more diary entries for agent ${agentAddress}`);
+    
+    // Find the lowest round we already have
+    const lowestExistingRound = Math.min(...currentEntries.map(e => e.round));
+    console.log(`Lowest existing round: ${lowestExistingRound}`);
+    
+    // Start searching from one round lower
+    const startRound = Math.max(1, lowestExistingRound - 1);
+    
+    // New diary entries we'll return
+    const newEntries: DiaryEntry[] = [];
+    let fetchedEntries = 0;
+    
+    // Search backwards for more entries
+    for (let r = startRound; r >= 1 && fetchedEntries < maxAdditionalEntries; r--) {
+      try {
+        const entry = await fetchDiaryEntry(agentAddress, r);
+        if (entry) {
+          console.log(`Found new diary entry for round ${r}`);
+          newEntries.push(entry);
+          fetchedEntries++;
+        }
+      } catch (error) {
+        const err = error as Error;
+        console.debug(`Error fetching diary entry for round ${r}: ${err.message}`);
+      }
+    }
+    
+    console.log(`Found ${newEntries.length} new diary entries`);
+    return newEntries;
+  } catch (error) {
+    console.error('Error fetching more diary entries:', error);
+    return [];
+  }
+}
+
 // Helper function to fetch a single diary entry
 async function fetchDiaryEntry(agentAddress: string, round: number): Promise<DiaryEntry | null> {
   try {
