@@ -11,31 +11,34 @@ export function cn(...inputs: ClassValue[]) {
 /**
  * Formats a date to a human-readable string
  */
-export function formatDate(date: Date): string {
+export function formatDate(date: Date | string): string {
+  // Convert string to Date if needed
+  const dateObj = typeof date === 'string' ? new Date(date) : date;
+  
   const now = new Date();
   
   // Format: Today at 2:30 PM
   if (
-    date.getDate() === now.getDate() &&
-    date.getMonth() === now.getMonth() &&
-    date.getFullYear() === now.getFullYear()
+    dateObj.getDate() === now.getDate() &&
+    dateObj.getMonth() === now.getMonth() &&
+    dateObj.getFullYear() === now.getFullYear()
   ) {
-    return `Today at ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    return `Today at ${dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
   }
   
   // Format: Yesterday at 2:30 PM
   const yesterday = new Date(now);
   yesterday.setDate(now.getDate() - 1);
   if (
-    date.getDate() === yesterday.getDate() &&
-    date.getMonth() === yesterday.getMonth() &&
-    date.getFullYear() === yesterday.getFullYear()
+    dateObj.getDate() === yesterday.getDate() &&
+    dateObj.getMonth() === yesterday.getMonth() &&
+    dateObj.getFullYear() === yesterday.getFullYear()
   ) {
-    return `Yesterday at ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    return `Yesterday at ${dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
   }
   
   // Format: Jan 1, 2023 at 2:30 PM
-  return `${date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })} at ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+  return `${dateObj.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })} at ${dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
 }
 
 /**
@@ -97,8 +100,18 @@ export function extractKeyDecisions(text: string): string[] {
 /**
  * Gets a color for a sentiment value (-1 to 1)
  */
-export function getSentimentColor(sentiment: number): string {
-  // Red for negative, green for positive, yellow for neutral
+export function getSentimentColor(sentiment: number | 'positive' | 'neutral' | 'negative' | undefined): string {
+  // Handle string sentiment values
+  if (typeof sentiment === 'string') {
+    if (sentiment === 'positive') return '#22c55e'; // Green
+    if (sentiment === 'negative') return '#ef4444'; // Red
+    return '#eab308'; // Yellow for neutral
+  }
+  
+  // Handle undefined
+  if (sentiment === undefined) return '#eab308'; // Yellow for neutral
+  
+  // Handle number sentiment values
   if (sentiment < -0.3) return '#ef4444'; // Red
   if (sentiment > 0.3) return '#22c55e';  // Green
   return '#eab308';  // Yellow

@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useSwanContext } from '@/lib/providers/SwanProvider';
 import { formatDate, truncateString } from '@/lib/utils';
 import { 
@@ -10,12 +10,21 @@ import {
   Info, 
   Tag, 
   Clock, 
-  ExternalLink 
+  ExternalLink,
+  Copy,
+  Check
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export function AgentProfile() {
   const { currentAgent, isLoading } = useSwanContext();
+  const [copied, setCopied] = useState(false);
+  
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
   
   if (isLoading) {
     return (
@@ -51,16 +60,35 @@ export function AgentProfile() {
         
         <div className="flex-1">
           <h2 className="text-xl sm:text-2xl font-bold">{currentAgent.name}</h2>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-1 break-all sm:break-normal">
-            {truncateString(currentAgent.address, 8)}
+          
+          {/* Address with copy and etherscan buttons */}
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <div className="text-xs sm:text-sm text-muted-foreground font-mono bg-muted/30 px-2 py-1 rounded">
+              {truncateString(currentAgent.address, 20)}
+            </div>
+            
             <button 
-              className="inline-flex items-center ml-2 text-primary hover:text-primary/80"
-              onClick={() => window.open(`https://etherscan.io/address/${currentAgent.address}`, '_blank')}
+              className="inline-flex items-center text-primary hover:text-primary/80 text-xs"
+              onClick={() => copyToClipboard(currentAgent.address)}
+              title="Copy address"
+            >
+              {copied ? (
+                <Check className="h-3 w-3 mr-1" />
+              ) : (
+                <Copy className="h-3 w-3 mr-1" />
+              )}
+              <span>{copied ? 'Copied!' : 'Copy'}</span>
+            </button>
+            
+            <button 
+              className="inline-flex items-center text-primary hover:text-primary/80 text-xs"
+              onClick={() => window.open(`https://basescan.org/address/${currentAgent.address}`, '_blank')}
+              title="View on BaseScan"
             >
               <ExternalLink className="h-3 w-3 mr-1" />
-              <span className="text-xs">View on Etherscan</span>
+              <span>BaseScan</span>
             </button>
-          </p>
+          </div>
         </div>
       </div>
       

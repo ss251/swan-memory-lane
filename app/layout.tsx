@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
-import FrameProvider from "@/components/frame-provider";
+import { WagmiConfig } from "@/components/wagmi-provider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -71,16 +71,16 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <FrameProvider>
+        <WagmiConfig>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+          >
             {children}
-          </FrameProvider>
-        </ThemeProvider>
+          </ThemeProvider>
+        </WagmiConfig>
       </body>
     </html>
   );

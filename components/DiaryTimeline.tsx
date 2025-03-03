@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useSwanContext, DiaryEntry as DiaryEntryType } from '@/lib/providers/SwanProvider';
+import { useSwanContext } from '@/lib/providers/SwanProvider';
+import { DiaryEntry as DiaryEntryType } from '@/lib/hooks/useAgentData';
 import { formatDate, getSentimentColor } from '@/lib/utils';
 import { Calendar, CalendarDays, ChevronDown, ChevronUp, Heart } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -44,7 +45,16 @@ const DiaryEntry = ({ entry, isFirst }: { entry: DiaryEntryType; isFirst: boolea
             'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-300'
           )}>
             <Heart className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1" />
-            <span>{(entry.sentiment * 100).toFixed(0)}%</span>
+            <span>
+              {typeof entry.sentiment === 'number' 
+                ? `${(entry.sentiment * 100).toFixed(0)}%`
+                : entry.sentiment === 'positive' 
+                  ? 'Positive' 
+                  : entry.sentiment === 'negative' 
+                    ? 'Negative' 
+                    : 'Neutral'
+              }
+            </span>
           </div>
         </div>
         
@@ -70,17 +80,6 @@ const DiaryEntry = ({ entry, isFirst }: { entry: DiaryEntryType; isFirst: boolea
               className="overflow-hidden"
             >
               <p className="mt-2 text-xs sm:text-sm text-muted-foreground">{entry.content}</p>
-              
-              {entry.decisions && entry.decisions.length > 0 && (
-                <div className="mt-2 text-xs sm:text-sm">
-                  <h4 className="text-2xs sm:text-xs font-medium mb-1">Key Decisions:</h4>
-                  <p className="text-2xs sm:text-xs list-disc pl-3 sm:pl-4 space-y-0.5 sm:space-y-1">
-                    {entry.decisions.map((decision: string, idx: number) => (
-                      <li key={idx} className="text-muted-foreground">{decision}</li>
-                    ))}
-                  </p>
-                </div>
-              )}
             </motion.div>
           )}
         </AnimatePresence>
@@ -126,7 +125,7 @@ export function DiaryTimeline() {
       <div className="mt-4 sm:mt-6">
         {sortedEntries.map((entry, index) => (
           <DiaryEntry 
-            key={entry.id} 
+            key={`entry-${index}-${entry.round}`}
             entry={entry} 
             isFirst={index === 0} 
           />

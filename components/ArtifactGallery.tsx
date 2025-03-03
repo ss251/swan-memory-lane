@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useSwanContext, Artifact } from '@/lib/providers/SwanProvider';
+import { useSwanContext } from '@/lib/providers/SwanProvider';
+import { Artifact } from '@/lib/hooks/useArtifacts';
 import { formatDate } from '@/lib/utils';
 import { ShoppingBag, Calendar, Coins, ExternalLink } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -67,7 +68,7 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, index }) => {
           
           <div className="flex items-center text-xs text-gray-300">
             <Calendar className="h-3 w-3 mr-2" />
-            <span>Acquired: {formatDate(artifact.acquiredAt)}</span>
+            <span>Acquired: {formatDate(artifact.createdAt)}</span>
           </div>
           
           <button 
