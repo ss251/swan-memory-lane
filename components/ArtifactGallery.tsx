@@ -1,12 +1,23 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSwanContext } from '@/lib/providers/SwanProvider';
-import { Artifact } from '@/lib/hooks/useArtifacts';
+import { Artifact, useLoadMoreArtifacts } from '@/lib/hooks/useArtifacts';
 import { formatDate } from '@/lib/utils';
-import { ShoppingBag, Calendar, Coins, ExternalLink } from 'lucide-react';
+import { ShoppingBag, Calendar, Coins, ExternalLink, AlertTriangle, RefreshCw, ChevronLeft, ChevronRight, Info } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Badge } from '@/components/ui/badge';
+
+// Number of artifacts to show per page in the UI
+const ARTIFACTS_PER_PAGE = 6;
 
 interface ArtifactCardProps {
   artifact: Artifact;
@@ -71,6 +82,11 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, index }) => {
             <span>Acquired: {formatDate(artifact.createdAt)}</span>
           </div>
           
+          <div className="flex items-center text-xs text-gray-300">
+            <Calendar className="h-3 w-3 mr-2" />
+            <span>Round: {artifact.round}</span>
+          </div>
+          
           <button 
             className="w-full mt-2 bg-white/10 hover:bg-white/20 text-white rounded-md py-1 text-sm flex items-center justify-center"
             onClick={() => window.open(`https://etherscan.io/address/${artifact.address}`, '_blank')}
@@ -84,13 +100,106 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, index }) => {
   );
 };
 
+// Loading placeholder for artifact cards
+const ArtifactCardSkeleton = ({ index }: { index: number }) => (
+  <motion.div 
+    className="h-60 rounded-xl shadow-md bg-gray-100 dark:bg-gray-800 animate-pulse"
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.3, delay: index * 0.05 }}
+  />
+);
+
 export function ArtifactGallery() {
   const { currentAgent, isLoading } = useSwanContext();
+  const { 
+    data: infiniteArtifacts, 
+    isLoading: isArtifactsLoading,
+    fetchNextPage
+  } = useLoadMoreArtifacts();
+  const [currentPage, setCurrentPage] = useState(0);
+  const [totalArtifacts, setTotalArtifacts] = useState(0);
+  
+  // Keep track of all artifacts across pages for internal pagination
+  const [allArtifacts, setAllArtifacts] = useState<Artifact[]>([]);
+  
+  // Compute combined artifacts from both sources (infinite query and current agent)
+  useEffect(() => {
+    const artifactsFromPages = infiniteArtifacts?.pages
+      ? infiniteArtifacts.pages.flatMap(page => page.artifacts)
+      : [];
+      
+    const agentArtifacts = currentAgent?.artifacts || [];
+    
+    // Combine artifacts from both sources, eliminate duplicates by address
+    const uniqueArtifacts = [...artifactsFromPages];
+    
+    // Add artifacts from agent if they're not already in the list
+    agentArtifacts.forEach(agentArtifact => {
+      if (!uniqueArtifacts.some(a => a.address === agentArtifact.address)) {
+        uniqueArtifacts.push(agentArtifact);
+      }
+    });
+    
+    // Sort artifacts by round, ascending (oldest first)
+    const sortedArtifacts = [...uniqueArtifacts].sort((a, b) => a.round - b.round);
+    
+    setAllArtifacts(sortedArtifacts);
+    setTotalArtifacts(sortedArtifacts.length);
+    
+    // Reset to first page when artifacts change
+    setCurrentPage(0);
+  }, [infiniteArtifacts?.pages, currentAgent?.artifacts]);
+  
+  // Get artifacts for the current page
+  const displayedArtifacts = allArtifacts.slice(
+    currentPage * ARTIFACTS_PER_PAGE, 
+    (currentPage + 1) * ARTIFACTS_PER_PAGE
+  );
+  
+  // Calculate total number of pages
+  const totalPages = Math.ceil(allArtifacts.length / ARTIFACTS_PER_PAGE);
+  
+  // Pagination functions
+  const goToNextPage = () => {
+    setCurrentPage(prev => Math.min(prev + 1, totalPages - 1));
+  };
+  
+  const goToPrevPage = () => {
+    setCurrentPage(prev => Math.max(prev - 1, 0));
+  };
+  
+  // Function to load more artifacts
+  const handleLoadMore = () => {
+    if (infiniteArtifacts?.pages) {
+      const lastPage = infiniteArtifacts.pages[infiniteArtifacts.pages.length - 1];
+      if (lastPage) {
+        console.log('Loading more artifacts...');
+        fetchNextPage();
+      }
+    }
+  };
+  
+  // Function to search earlier rounds
+  const handleRetryEarlierRounds = () => {
+    fetchNextPage();
+  };
+  
+  // Show retry button when no artifacts are loaded and we're not currently loading
+  const showRetryButton = !isArtifactsLoading && allArtifacts.length === 0;
   
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-40">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      <div className="p-3 sm:p-4">
+        <div className="h-7 w-48 bg-gray-200 dark:bg-gray-800 animate-pulse rounded mb-6"></div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+          <ArtifactCardSkeleton index={0} />
+          <ArtifactCardSkeleton index={1} />
+          <ArtifactCardSkeleton index={2} />
+          <ArtifactCardSkeleton index={3} />
+          <ArtifactCardSkeleton index={4} />
+          <ArtifactCardSkeleton index={5} />
+        </div>
       </div>
     );
   }
@@ -109,30 +218,123 @@ export function ArtifactGallery() {
   
   return (
     <div className="p-3 sm:p-4">
-      <h2 className="text-xl font-semibold mb-4 sm:mb-6 flex items-center">
-        <ShoppingBag className="h-5 w-5 mr-2" />
-        Artifact Collection ({currentAgent.artifacts.length})
-      </h2>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-xl font-semibold text-foreground">
+          Artifacts Collection
+          {totalArtifacts > 0 && (
+            <Badge variant="outline" className="ml-2">
+              {totalArtifacts} total
+            </Badge>
+          )}
+        </h2>
+        
+        <div className="flex space-x-2">
+          {isArtifactsLoading && (
+            <div className="flex items-center text-sm text-muted-foreground">
+              <RefreshCw className="h-3 w-3 mr-1 animate-spin" /> Loading...
+            </div>
+          )}
+        </div>
+      </div>
       
-      {currentAgent.artifacts.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-          {currentAgent.artifacts.map((artifact, index) => (
-            <ArtifactCard 
-              key={artifact.id} 
-              artifact={artifact} 
-              index={index} 
-            />
-          ))}
+      {displayedArtifacts.length > 0 ? (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+            {displayedArtifacts.map((artifact, index) => (
+              <ArtifactCard 
+                key={artifact.address} 
+                artifact={artifact} 
+                index={index}
+              />
+            ))}
+          </div>
+          
+          {/* Pagination controls */}
+          <div className="flex justify-between items-center mt-6">
+            <div className="text-sm text-muted-foreground">
+              Showing {currentPage * ARTIFACTS_PER_PAGE + 1}-{Math.min((currentPage + 1) * ARTIFACTS_PER_PAGE, totalArtifacts)} of {totalArtifacts}
+            </div>
+            
+            <div className="flex space-x-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={goToPrevPage} 
+                disabled={currentPage === 0}
+              >
+                <ChevronLeft className="h-4 w-4 mr-1" /> Previous
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={goToNextPage} 
+                disabled={currentPage >= totalPages - 1}
+              >
+                Next <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            </div>
+          </div>
+          
+          {/* Show a button to load more if needed */}
+          {currentPage >= totalPages - 1 && (
+            <div className="text-center mt-6">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleLoadMore}
+                disabled={isArtifactsLoading}
+              >
+                {isArtifactsLoading ? (
+                  <><RefreshCw className="h-4 w-4 mr-2 animate-spin" /> Loading more artifacts...</>
+                ) : (
+                  <>Load more artifacts</>
+                )}
+              </Button>
+            </div>
+          )}
+        </>
+      ) : showRetryButton ? (
+        <div className="text-center py-12 border rounded-lg">
+          <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+          <h3 className="text-lg font-medium">No artifacts found</h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            Try searching earlier rounds to find artifacts.
+          </p>
+          <Button onClick={handleRetryEarlierRounds} disabled={isArtifactsLoading}>
+            <RefreshCw className="h-4 w-4 mr-2" /> Search Earlier Rounds
+          </Button>
         </div>
       ) : (
-        <div className="text-center p-6 sm:p-10 border border-dashed rounded-lg">
-          <ShoppingBag className="h-8 sm:h-10 w-8 sm:w-10 mx-auto mb-3 sm:mb-4 text-muted-foreground" />
-          <h3 className="text-base sm:text-lg font-medium">No Artifacts Yet</h3>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-2">
-            This agent hasn&apos;t collected any artifacts yet.
-          </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+          <ArtifactCardSkeleton index={0} />
+          <ArtifactCardSkeleton index={1} />
+          <ArtifactCardSkeleton index={2} />
+          <ArtifactCardSkeleton index={3} />
+          <ArtifactCardSkeleton index={4} />
+          <ArtifactCardSkeleton index={5} />
         </div>
       )}
+      
+      {/* Info tooltip about loading artifacts */}
+      <div className="mt-8 flex justify-end">
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <Info className="h-4 w-4 text-muted-foreground" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent align="end" className="max-w-sm">
+              <p className="text-sm">
+                Artifacts are loaded in batches of 10 rounds at a time. 
+                The UI shows {ARTIFACTS_PER_PAGE} artifacts per page from all loaded rounds.
+                Use the pagination controls to view more artifacts.
+              </p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
     </div>
   );
 } 

@@ -17,7 +17,7 @@ import {
 import { motion } from 'framer-motion';
 
 export function AgentProfile() {
-  const { currentAgent, isLoading } = useSwanContext();
+  const { currentAgent, isLoading, isArtifactsLoading, isDiaryLoading } = useSwanContext();
   const [copied, setCopied] = useState(false);
   
   const copyToClipboard = (text: string) => {
@@ -28,9 +28,45 @@ export function AgentProfile() {
   
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-40">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
+      <motion.div 
+        className="p-4 sm:p-6 bg-card rounded-xl shadow-sm"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.3 }}
+      >
+        <div className="flex flex-col sm:flex-row sm:items-start">
+          <div className="bg-gray-200 dark:bg-gray-800 rounded-full h-14 w-14 mb-4 sm:mb-0 sm:mr-4 animate-pulse"></div>
+          <div className="flex-1">
+            <div className="h-8 bg-gray-200 dark:bg-gray-800 rounded w-48 animate-pulse"></div>
+            <div className="mt-2 h-6 bg-gray-200 dark:bg-gray-800 rounded w-64 animate-pulse"></div>
+          </div>
+        </div>
+        
+        <div className="mt-4">
+          <div className="h-4 bg-gray-200 dark:bg-gray-800 rounded w-24 mb-2 animate-pulse"></div>
+          <div className="h-16 bg-gray-200 dark:bg-gray-800 rounded w-full animate-pulse"></div>
+        </div>
+        
+        <div className="grid grid-cols-1 xs:grid-cols-2 gap-3 sm:gap-4 mt-6">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-16 bg-gray-200 dark:bg-gray-800 rounded animate-pulse"></div>
+          ))}
+        </div>
+        
+        <div className="mt-6 bg-gray-200 dark:bg-gray-800 rounded-lg p-3 sm:p-4">
+          <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded w-24 mb-4 animate-pulse"></div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <div className="h-3 bg-gray-300 dark:bg-gray-700 rounded w-24 mb-2 animate-pulse"></div>
+              <div className="h-5 bg-gray-300 dark:bg-gray-700 rounded w-8 animate-pulse"></div>
+            </div>
+            <div>
+              <div className="h-3 bg-gray-300 dark:bg-gray-700 rounded w-24 mb-2 animate-pulse"></div>
+              <div className="h-5 bg-gray-300 dark:bg-gray-700 rounded w-8 animate-pulse"></div>
+            </div>
+          </div>
+        </div>
+      </motion.div>
     );
   }
   
@@ -137,13 +173,35 @@ export function AgentProfile() {
         
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <div className="text-xs text-muted-foreground">Artifacts Collected</div>
-            <div className="font-semibold">{currentAgent.artifacts.length}</div>
+            <div className="text-xs text-muted-foreground flex items-center">
+              Artifacts Collected
+              {isArtifactsLoading && (
+                <div className="ml-1 h-2 w-2 rounded-full bg-primary animate-pulse"></div>
+              )}
+            </div>
+            <div className="font-semibold">
+              {isArtifactsLoading ? (
+                <div className="inline-block w-6 h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+              ) : (
+                currentAgent.artifacts.length
+              )}
+            </div>
           </div>
           
           <div>
-            <div className="text-xs text-muted-foreground">Diary Entries</div>
-            <div className="font-semibold">{currentAgent.diaryEntries.length}</div>
+            <div className="text-xs text-muted-foreground flex items-center">
+              Diary Entries
+              {isDiaryLoading && (
+                <div className="ml-1 h-2 w-2 rounded-full bg-primary animate-pulse"></div>
+              )}
+            </div>
+            <div className="font-semibold">
+              {isDiaryLoading ? (
+                <div className="inline-block w-6 h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+              ) : (
+                currentAgent.diaryEntries.length
+              )}
+            </div>
           </div>
         </div>
       </div>

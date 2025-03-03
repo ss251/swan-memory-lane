@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { useSwanContext } from '@/lib/providers/SwanProvider';
 import { DiaryEntry as DiaryEntryType } from '@/lib/hooks/useAgentData';
 import { formatDate, getSentimentColor } from '@/lib/utils';
-import { Calendar, CalendarDays, ChevronDown, ChevronUp, Heart } from 'lucide-react';
+import { Calendar, CalendarDays, ChevronDown, ChevronUp, Heart, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
@@ -88,13 +88,43 @@ const DiaryEntry = ({ entry, isFirst }: { entry: DiaryEntryType; isFirst: boolea
   );
 };
 
+// Loading animation for timeline entries
+const LoadingEntry = ({ index }: { index: number }) => (
+  <div 
+    className="mb-6 sm:mb-8 relative border-l-2 sm:border-l-4 border-gray-200 dark:border-gray-800"
+    style={{ animationDelay: `${index * 100}ms` }}
+  >
+    <div className="absolute -left-1.5 sm:-left-2 mt-1.5">
+      <div className="h-3 w-3 sm:h-4 sm:w-4 rounded-full bg-gray-300 dark:bg-gray-700 animate-pulse" />
+    </div>
+    
+    <div className="pl-4 sm:pl-6">
+      <div className="flex items-center mb-2">
+        <div className="h-3 w-20 bg-gray-200 dark:bg-gray-700 rounded-full animate-pulse" />
+      </div>
+      <div className="h-4 w-32 bg-gray-300 dark:bg-gray-600 rounded-md animate-pulse mb-2" />
+      <div className="h-10 w-full bg-gray-100 dark:bg-gray-800 rounded-md animate-pulse" />
+    </div>
+  </div>
+);
+
 export function DiaryTimeline() {
-  const { currentAgent, isLoading } = useSwanContext();
+  const { currentAgent, isLoading, isDiaryLoading } = useSwanContext();
+  
+  // Sort diary entries by round in ascending order (oldest first)
+  const sortedDiaryEntries = currentAgent?.diaryEntries 
+    ? [...currentAgent.diaryEntries].sort((a, b) => a.round - b.round) 
+    : [];
   
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-40">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      <div className="p-3 sm:p-4">
+        <div className="h-7 w-48 bg-gray-200 dark:bg-gray-800 animate-pulse rounded mb-6"></div>
+        <div className="mt-4 sm:mt-6">
+          <LoadingEntry index={0} />
+          <LoadingEntry index={1} />
+          <LoadingEntry index={2} />
+        </div>
       </div>
     );
   }
@@ -111,29 +141,42 @@ export function DiaryTimeline() {
     );
   }
   
-  const sortedEntries = [...currentAgent.diaryEntries].sort(
-    (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-  );
-  
   return (
     <div className="p-3 sm:p-4">
       <h2 className="text-lg sm:text-xl font-semibold mb-4 sm:mb-6 flex items-center">
         <Calendar className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
         Memory Timeline
+        {isDiaryLoading && <span className="ml-2 text-sm text-muted-foreground">(Loading...)</span>}
       </h2>
       
       <div className="mt-4 sm:mt-6">
-        {sortedEntries.map((entry, index) => (
-          <DiaryEntry 
-            key={`entry-${index}-${entry.round}`}
-            entry={entry} 
-            isFirst={index === 0} 
-          />
-        ))}
-        
-        {sortedEntries.length === 0 && (
+        {isDiaryLoading ? (
+          // Show loading indicators when diary entries are loading
+          <>
+            <LoadingEntry index={0} />
+            <LoadingEntry index={1} />
+            <LoadingEntry index={2} />
+          </>
+        ) : sortedDiaryEntries.length > 0 ? (
+          // Show diary entries when loaded
+          sortedDiaryEntries.map((entry, index) => (
+            <DiaryEntry 
+              key={`entry-${index}-${entry.round}`}
+              entry={entry} 
+              isFirst={index === 0} 
+            />
+          ))
+        ) : (
+          // Show empty state if no entries
           <div className="text-center p-4 sm:p-6 border border-dashed rounded-lg">
-            <p className="text-xs sm:text-sm text-muted-foreground">No diary entries yet.</p>
+            <Clock className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+            <h3 className="text-base sm:text-lg font-medium">No Diary Entries Yet</h3>
+            <p className="text-sm text-muted-foreground mt-1">
+              The oracle hasn&apos;t recorded any entries for this agent.
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              This may be due to an ABI mismatch with the Oracle Coordinator contract.
+            </p>
           </div>
         )}
       </div>

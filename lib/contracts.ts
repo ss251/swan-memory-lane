@@ -46,7 +46,10 @@ export const SWAN_ABI = [
 // ABI for the Oracle Coordinator
 export const LLM_ORACLE_COORDINATOR_ABI = [
   {"inputs":[],"name":"getBestResponse","outputs":[{"components":[{"internalType":"address","name":"responder","type":"address"},{"internalType":"uint256","name":"nonce","type":"uint256"},{"internalType":"uint256","name":"score","type":"uint256"},{"internalType":"bytes","name":"output","type":"bytes"},{"internalType":"bytes","name":"metadata","type":"bytes"}],"internalType":"struct LLMOracleTask.TaskResponse","name":"","type":"tuple"}],"stateMutability":"view","type":"function"},
-  {"inputs":[{"internalType":"uint256","name":"taskId","type":"uint256"}],"name":"getBestResponse","outputs":[{"components":[{"internalType":"address","name":"responder","type":"address"},{"internalType":"uint256","name":"nonce","type":"uint256"},{"internalType":"uint256","name":"score","type":"uint256"},{"internalType":"bytes","name":"output","type":"bytes"},{"internalType":"bytes","name":"metadata","type":"bytes"}],"internalType":"struct LLMOracleTask.TaskResponse","name":"","type":"tuple"}],"stateMutability":"view","type":"function"}
+  {"inputs":[{"internalType":"uint256","name":"taskId","type":"uint256"}],"name":"getBestResponse","outputs":[{"components":[{"internalType":"address","name":"responder","type":"address"},{"internalType":"uint256","name":"nonce","type":"uint256"},{"internalType":"uint256","name":"score","type":"uint256"},{"internalType":"bytes","name":"output","type":"bytes"},{"internalType":"bytes","name":"metadata","type":"bytes"}],"internalType":"struct LLMOracleTask.TaskResponse","name":"","type":"tuple"}],"stateMutability":"view","type":"function"},
+  {"inputs":[],"name":"TaskNotFulfilled","type":"error"},
+  {"inputs":[],"name":"InvalidTaskId","type":"error"},
+  {"inputs":[],"name":"48f178b8","type":"error"}
 ] as const;
 
 // ABI for the SwanAgent contract
@@ -99,5 +102,6 @@ export const SWAN_AGENT_ABI = [
 export const SWAN_ARTIFACT_ABI = [
   {"inputs":[],"name":"name","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},
   {"inputs":[],"name":"symbol","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},
-  {"inputs":[],"name":"description","outputs":[{"internalType":"bytes","name":"","type":"bytes"}],"stateMutability":"view","type":"function"}
+  {"inputs":[],"name":"description","outputs":[{"internalType":"bytes","name":"","type":"bytes"}],"stateMutability":"view","type":"function"},
+  {"inputs":[],"name":"createdAt","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"}
 ] as const; 

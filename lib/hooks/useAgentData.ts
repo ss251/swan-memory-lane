@@ -3,18 +3,16 @@
 import { useQuery } from '@tanstack/react-query';
 import { readContract } from 'wagmi/actions';
 import { config } from '@/lib/wagmi';
-import { 
-  SWAN_AGENT_ABI, 
-  LLM_ORACLE_COORDINATOR_ADDRESS, 
-  LLM_ORACLE_COORDINATOR_ABI 
-} from '@/lib/contracts';
 import { base } from 'wagmi/chains';
+import {
+  SWAN_AGENT_ABI,
+} from '@/lib/contracts';
 
-// Default agent address to use - replace with actual contract in production
-export const DEFAULT_AGENT_ADDRESS = '0xd4022dB6165caeA1F72a187D4d49B347E02E1484';
-
-// Flag to determine if we should show contract errors or suppress them
+// Development mode flag to control error behavior
 const DEVELOPMENT_MODE = process.env.NODE_ENV === 'development';
+
+// Default agent to use if none is provided
+export const DEFAULT_AGENT_ADDRESS = '0xd4022dB6165caeA1F72a187D4d49B347E02E1484';
 
 // Define types
 export interface AgentData {
@@ -33,9 +31,6 @@ export interface DiaryEntry {
   round: number;
   sentiment?: 'positive' | 'neutral' | 'negative';
 }
-
-// Maximum number of rounds to fetch diary entries for
-const MAX_DIARY_ROUNDS_TO_FETCH = 3;
 
 export function useAgentData(agentAddress = DEFAULT_AGENT_ADDRESS) {
   return useQuery({
@@ -96,27 +91,50 @@ export function useAgentData(agentAddress = DEFAULT_AGENT_ADDRESS) {
         // Convert treasury from BigInt to string
         const treasury = treasuryBigInt ? treasuryBigInt.toString() : '0';
         
-        // Fetch diary entries for each round, but limit to the most recent MAX_DIARY_ROUNDS_TO_FETCH
+        // Fetch diary entries for the agent
+        // Modified to search from round 1 but be more efficient
         const diaryEntries: DiaryEntry[] = [];
-        
-        // Calculate which rounds to fetch (newest to oldest, up to MAX_DIARY_ROUNDS_TO_FETCH)
-        const currentRound = Number(round);
-        const startRound = Math.max(1, currentRound - MAX_DIARY_ROUNDS_TO_FETCH + 1);
-        console.log(`Fetching diary entries for rounds ${startRound} to ${currentRound}`);
-        
-        // For each round we want to fetch, get the diary entry
-        const fetchPromises = [];
-        for (let r = startRound; r <= currentRound; r++) {
-          fetchPromises.push(fetchDiaryEntry(agentAddress, r));
+
+        // Get diary entries, but only look for the first 5 we can find
+        // No need to search through all rounds
+        const maxRound = Math.max(1, Number(round));
+        let fetchedEntries = 0;
+        const MAX_DIARY_ENTRIES = 5; // Just need a few entries to display
+
+        console.log(`Fetching diary entries, stopping after finding ${MAX_DIARY_ENTRIES} entries`);
+
+        // Start from most recent rounds (more likely to have entries)
+        for (let r = maxRound; r >= 1 && fetchedEntries < MAX_DIARY_ENTRIES; r--) {
+          try {
+            const entry = await fetchDiaryEntry(agentAddress, r);
+            if (entry) {
+              console.log(`Found diary entry for round ${r}`);
+              diaryEntries.push(entry);
+              fetchedEntries++;
+            }
+          } catch (error) {
+            const err = error as Error;
+            console.debug(`Error fetching diary entry for round ${r}: ${err.message}`);
+          }
         }
-        
-        // Wait for all fetches to complete
-        const fetchedEntries = await Promise.all(fetchPromises);
-        
-        // Add the valid entries to our array
-        for (const entry of fetchedEntries) {
-          if (entry) {
-            diaryEntries.push(entry);
+
+        // If no entries were found (possibly due to API failures), 
+        // include a placeholder entry in development mode
+        if (diaryEntries.length === 0 && DEVELOPMENT_MODE) {
+          console.log('No diary entries found, generating mock entries');
+          
+          // Create some realistic mock entries
+          for (let i = 0; i < Math.min(6, maxRound); i++) {
+            const mockRound = maxRound - i;
+            const dayOffset = i * 3; // Days ago
+            const timestamp = new Date(Date.now() - (dayOffset * 86400000)).toISOString();
+            const mockContent = `Mock entry for round ${mockRound} - ${timestamp}`;
+            diaryEntries.push({
+              content: mockContent,
+              timestamp,
+              round: mockRound,
+              sentiment: 'neutral',
+            });
           }
         }
         
@@ -125,7 +143,7 @@ export function useAgentData(agentAddress = DEFAULT_AGENT_ADDRESS) {
           address: agentAddress,
           name: name?.toString() || 'Unknown Agent',
           description: description?.toString() || 'No description available',
-          round: currentRound,
+          round: maxRound,
           treasury,
           createdAt: Math.floor(Date.now() / 1000) - 86400 * 30, // Placeholder: 30 days ago
           diaryEntries,
@@ -173,6 +191,8 @@ export function useAgentData(agentAddress = DEFAULT_AGENT_ADDRESS) {
 // Helper function to fetch a single diary entry
 async function fetchDiaryEntry(agentAddress: string, round: number): Promise<DiaryEntry | null> {
   try {
+    console.log(`Attempting to fetch diary entry for round ${round}`);
+    
     // Get the oracle state request task ID for this round
     const taskId = await readContract(config, {
       address: agentAddress as `0x${string}`,
@@ -182,45 +202,89 @@ async function fetchDiaryEntry(agentAddress: string, round: number): Promise<Dia
       chainId: base.id,
     });
     
-    if (!taskId) return null;
-    
-    // Get the result from the oracle coordinator
-    const oracleResponse = await readContract(config, {
-      address: LLM_ORACLE_COORDINATOR_ADDRESS as `0x${string}`,
-      abi: LLM_ORACLE_COORDINATOR_ABI,
-      functionName: 'getBestResponse',
-      args: [BigInt(taskId.toString())],
-      chainId: base.id,
-    });
-    
-    if (!oracleResponse || !oracleResponse.output) return null;
-    
-    // Parse the diary entry from the bytes output
-    const textDecoder = new TextDecoder();
-    
-    // Safely convert output to Uint8Array
-    let outputUint8;
-    if (oracleResponse.output) {
-      outputUint8 = new Uint8Array(Buffer.from(oracleResponse.output as unknown as string, 'hex'));
-    } else {
-      outputUint8 = new Uint8Array();
+    if (!taskId || taskId === BigInt(0)) {
+      console.log(`No task ID found for round ${round}`);
+      return null;
     }
-    const decoded = textDecoder.decode(outputUint8);
     
-    // Add sentiment analysis
-    const sentiment = getSentiment(decoded);
+    console.log(`Found task ID for round ${round}: ${taskId}`);
     
-    // Return the diary entry
-    return {
-      content: decoded,
-      timestamp: new Date().toISOString(), // Placeholder
-      round,
-      sentiment,
-    };
+    // Use oracleResult directly from the SwanAgent contract
+    try {
+      const result = await readContract(config, {
+        address: agentAddress as `0x${string}`,
+        abi: SWAN_AGENT_ABI,
+        functionName: 'oracleResult',
+        args: [taskId],
+        chainId: base.id,
+      });
+      
+      if (!result) {
+        console.log(`No diary entry found for task ${taskId}`);
+        return null;
+      }
+      
+      // Safely handle the result - it could be a string, ArrayBuffer, or complex object
+      console.log('Raw oracle result:', result);
+      
+      // Try to safely extract the content
+      let content;
+      
+      if (typeof result === 'string') {
+        // If it's already a string, use it directly
+        content = result;
+      } else if (Array.isArray(result)) {
+        // If it's a byte array, decode it
+        try {
+          const decoder = new TextDecoder();
+          content = decoder.decode(new Uint8Array(Array.from(result)));
+        } catch (decodeError) {
+          console.error('Error decoding bytes:', decodeError);
+          // Fallback: try to stringify the result
+          content = JSON.stringify(result);
+        }
+      } else {
+        // For other types (like objects), stringify them
+        try {
+          content = JSON.stringify(result);
+        } catch (jsonError) {
+          console.error('Error stringifying result:', jsonError);
+          content = `[Unreadable diary entry for round ${round}]`;
+        }
+      }
+      
+      // Parse JSON if the content looks like JSON
+      if (typeof content === 'string' && 
+          (content.startsWith('{') || content.startsWith('['))) {
+        try {
+          const parsedContent = JSON.parse(content);
+          // If this is a structured result with a content field, use that
+          if (parsedContent.content) {
+            content = parsedContent.content;
+          } else if (parsedContent.arweave && parsedContent.arweave.content) {
+            // Handle special case when the content is nested in arweave.content
+            content = parsedContent.arweave.content;
+          }
+        } catch {
+          // It's not valid JSON, keep the original string
+          console.log('Content is not valid JSON, using as-is');
+        }
+      }
+      
+      // Create and return the diary entry
+      return {
+        content: typeof content === 'string' ? content : `[Complex diary entry for round ${round}]`,
+        timestamp: new Date().toISOString(),
+        round,
+        sentiment: getSentiment(typeof content === 'string' ? content : ''),
+      };
+    } catch (error) {
+      const err = error as Error;
+      console.warn(`Error getting oracle result: ${err.message}`);
+      return null;
+    }
   } catch (error) {
-    if (!DEVELOPMENT_MODE) {
-      console.error(`Error fetching diary for round ${round}:`, error);
-    }
+    console.error(`Error fetching diary for round ${round}:`, error);
     return null;
   }
 }

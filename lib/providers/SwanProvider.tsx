@@ -24,6 +24,8 @@ type SwanContextType = {
   agents: Agent[];
   currentAgent: Agent | null;
   isLoading: boolean;
+  isArtifactsLoading: boolean;
+  isDiaryLoading: boolean;
   error: string | null;
   selectAgent: (agentId: string) => void;
   refreshAgentData: () => Promise<void>;
@@ -42,17 +44,20 @@ export const SwanProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [currentAgentAddress, setCurrentAgentAddress] = useState<string>(DEFAULT_AGENT_ADDRESS);
 
   // Use our custom hooks to fetch data from the blockchain
-  const { data: agentData, isLoading: isAgentLoading, error: agentError } = useAgentData(currentAgentAddress);
-  const { data: artifacts, isLoading: isArtifactsLoading, error: artifactsError } = useArtifacts(currentAgentAddress);
+  const { data: agentData, isLoading: isAgentLoading, error: agentError, isFetching: isAgentFetching } = useAgentData(currentAgentAddress);
+  const { data: artifacts, isLoading: isArtifactsLoadingState, error: artifactsError } = useArtifacts(currentAgentAddress);
 
-  const isLoading = isAgentLoading || isArtifactsLoading;
+  // Track specific loading states
+  const isLoading = isAgentLoading;
+  const isDiaryLoading = isAgentFetching && !isAgentLoading;
+  const isArtifactsLoading = isArtifactsLoadingState;
 
-  // Update agents when data changes
+  // Update agent basic info as soon as it's available
   useEffect(() => {
-    console.log("Provider data update:", { agentData, artifacts, isLoading });
+    console.log("Agent data update:", { agentData, isAgentLoading });
     
-    // Only proceed if we have both data and they're not loading
-    if (agentData && artifacts && !isLoading) {
+    // Proceed if we have agent data, regardless of artifacts
+    if (agentData && !isAgentLoading) {
       try {
         console.log("Processing agent data:", agentData);
         
@@ -60,6 +65,10 @@ export const SwanProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         const treasuryStr = agentData.treasury.toString();
         // Convert to ETH format (divide by 10^18) and round to 4 decimal places for display
         const treasuryEth = (Number(treasuryStr) / 1e18).toFixed(4);
+        
+        // Make sure we have diary entries
+        const diaryEntries = agentData.diaryEntries || [];
+        console.log("Diary entries:", diaryEntries.length, diaryEntries);
         
         // Convert blockchain data to our Agent type
         const agent: Agent = {
@@ -71,8 +80,8 @@ export const SwanProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           treasury: treasuryEth,
           listingFee: 5, // Default for now
           currentRound: agentData.round,
-          artifacts: artifacts || [],
-          diaryEntries: agentData.diaryEntries || [],
+          artifacts: [], // Initialize with empty array, will be updated later
+          diaryEntries: diaryEntries, // Ensure we set diary entries from agentData
         };
 
         console.log("Created agent object:", agent);
@@ -101,7 +110,55 @@ export const SwanProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setError(`Failed to process agent data: ${errorMessage}`);
       }
     }
-  }, [agentData, artifacts, isLoading, currentAgentAddress]);
+  }, [agentData, isAgentLoading, currentAgentAddress]);
+
+  // Update artifacts when they become available
+  useEffect(() => {
+    console.log("Artifacts update:", { artifacts, isArtifactsLoadingState });
+    
+    // Only update artifacts if we already have an agent and artifacts data
+    if (artifacts && currentAgent && !isArtifactsLoadingState) {
+      try {
+        // Create a fresh artifacts array to avoid reference issues
+        const newArtifacts = [...artifacts];
+        
+        // Update the current agent with the new artifacts, only if they've changed
+        setCurrentAgent(prevAgent => {
+          if (!prevAgent) return null;
+          
+          // Check if artifacts have actually changed before updating
+          if (JSON.stringify(prevAgent.artifacts) === JSON.stringify(newArtifacts)) {
+            return prevAgent; // No change, return the previous agent to avoid re-render
+          }
+          
+          return {
+            ...prevAgent,
+            artifacts: newArtifacts
+          };
+        });
+        
+        // Also update in the agents list
+        setAgents(prevAgents => {
+          return prevAgents.map(agent => {
+            if (agent.address === currentAgentAddress) {
+              // Check if artifacts have actually changed before updating
+              if (JSON.stringify(agent.artifacts) === JSON.stringify(newArtifacts)) {
+                return agent; // No change, return the previous agent to avoid re-render
+              }
+              
+              return {
+                ...agent,
+                artifacts: newArtifacts
+              };
+            }
+            return agent;
+          });
+        });
+      } catch (err: unknown) {
+        console.error('Error updating artifacts:', err);
+      }
+    }
+  }, [artifacts, isArtifactsLoadingState]);
 
   // Set error if any of our data fetching failed
   useEffect(() => {
@@ -139,6 +196,8 @@ export const SwanProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     agents,
     currentAgent,
     isLoading,
+    isArtifactsLoading,
+    isDiaryLoading,
     error,
     selectAgent,
     refreshAgentData,
