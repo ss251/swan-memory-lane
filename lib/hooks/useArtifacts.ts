@@ -349,9 +349,11 @@ export function useLoadMoreArtifacts(
           
           pageParam.currentRound = Number(roundResult[0]); // First element is the round
           
-          // Start with round 1 and load a small first batch
-          pageParam.startRound = 1;
-          pageParam.endRound = Math.min(pageParam.currentRound, 10); // First 10 rounds only
+          // Start with the most recent rounds for a faster initial load
+          // Load only the most recent 5 rounds to start
+          const recentRoundsToLoad = 5;
+          pageParam.startRound = Math.max(1, pageParam.currentRound - recentRoundsToLoad + 1);
+          pageParam.endRound = pageParam.currentRound;
           
           console.log(`Current round: ${pageParam.currentRound}, Loading initial batch from round ${pageParam.startRound} to ${pageParam.endRound}`);
         }
@@ -375,17 +377,38 @@ export function useLoadMoreArtifacts(
     },
     getNextPageParam: (lastPage) => {
       const { pageParam } = lastPage;
-      const { endRound, currentRound } = pageParam;
+      const { startRound, endRound, currentRound } = pageParam;
       
-      // If we've reached the current round, there are no more pages
+      // If we've loaded the most recent rounds, start loading earlier rounds
       if (endRound >= currentRound) {
+        // If startRound is already 1, we've loaded everything
+        if (startRound <= 1) {
+          console.log('No more rounds to fetch (reached earliest round)');
+          return undefined;
+        }
+        
+        // Load earlier rounds (previous rounds)
+        const earlierBatchSize = 10; // Load 10 rounds at a time going backwards
+        const nextStartRound = Math.max(1, startRound - earlierBatchSize);
+        const nextEndRound = startRound - 1;
+        
+        console.log(`Next page will fetch earlier rounds ${nextStartRound}-${nextEndRound}`);
+        return {
+          startRound: nextStartRound,
+          endRound: nextEndRound,
+          currentRound
+        };
+      }
+      
+      // We're still loading later rounds
+      const nextStartRound = endRound + 1;
+      const nextEndRound = Math.min(currentRound, nextStartRound + 9); // Next 10 rounds
+      
+      // If the next start round would be past the current round, we're done
+      if (nextStartRound > currentRound) {
         console.log('No more rounds to fetch (reached current round)');
         return undefined;
       }
-      
-      // Calculate the next range of rounds to fetch (moving forward in time)
-      const nextStartRound = endRound + 1;
-      const nextEndRound = Math.min(currentRound, nextStartRound + 9); // Next 10 rounds
       
       console.log(`Next page will fetch rounds ${nextStartRound}-${nextEndRound}`);
       return {

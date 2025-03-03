@@ -224,56 +224,99 @@ async function fetchDiaryEntry(agentAddress: string, round: number): Promise<Dia
         return null;
       }
       
-      // Safely handle the result - it could be a string, ArrayBuffer, or complex object
-      console.log('Raw oracle result:', result);
+      // Log the raw result for debugging
+      console.log(`Raw oracle result for round ${round}:`, result);
       
-      // Try to safely extract the content
-      let content;
+      // Step 1: Handle various result formats
+      let rawContent: string;
       
+      // Handle if the result is already a string
       if (typeof result === 'string') {
-        // If it's already a string, use it directly
-        content = result;
-      } else if (Array.isArray(result)) {
-        // If it's a byte array, decode it
+        rawContent = result;
+      } 
+      // Handle if the result is a byte array or other format
+      else {
         try {
-          const decoder = new TextDecoder();
-          content = decoder.decode(new Uint8Array(Array.from(result)));
-        } catch (decodeError) {
-          console.error('Error decoding bytes:', decodeError);
-          // Fallback: try to stringify the result
-          content = JSON.stringify(result);
-        }
-      } else {
-        // For other types (like objects), stringify them
-        try {
-          content = JSON.stringify(result);
-        } catch (jsonError) {
-          console.error('Error stringifying result:', jsonError);
-          content = `[Unreadable diary entry for round ${round}]`;
+          // First convert to string representation
+          const resultStr = String(result);
+          
+          // Check if it's a hex string
+          if (resultStr.startsWith('0x')) {
+            rawContent = resultStr;
+          } else if (Array.isArray(result)) {
+            // Try to decode as UTF-8
+            const decoder = new TextDecoder();
+            rawContent = decoder.decode(new Uint8Array(Array.from(result)));
+          } else {
+            // For other types, stringify
+            rawContent = JSON.stringify(result);
+          }
+        } catch (error) {
+          console.error('Error processing result:', error);
+          rawContent = String(result);
         }
       }
       
-      // Parse JSON if the content looks like JSON
-      if (typeof content === 'string' && 
-          (content.startsWith('{') || content.startsWith('['))) {
+      console.log(`Decoded content: ${rawContent}`);
+      
+      // Step 2: If it's a hex string, convert it to normal string
+      if (typeof rawContent === 'string' && rawContent.startsWith('0x')) {
         try {
-          const parsedContent = JSON.parse(content);
-          // If this is a structured result with a content field, use that
-          if (parsedContent.content) {
-            content = parsedContent.content;
-          } else if (parsedContent.arweave && parsedContent.arweave.content) {
-            // Handle special case when the content is nested in arweave.content
-            content = parsedContent.arweave.content;
+          // Remove the '0x' prefix and convert hex to string
+          const hex = rawContent.slice(2);
+          const bytes = new Uint8Array(hex.match(/.{1,2}/g)?.map(byte => parseInt(byte, 16)) || []);
+          rawContent = new TextDecoder().decode(bytes);
+          console.log(`Converted hex to string: ${rawContent}`);
+        } catch (hexError) {
+          console.error('Error converting hex to string:', hexError);
+        }
+      }
+      
+      // Step 3: Parse JSON if possible to extract Arweave TX ID
+      let arweaveTxId: string | null = null;
+      let content = rawContent;
+      
+      try {
+        if (typeof rawContent === 'string' && (rawContent.startsWith('{') || rawContent.startsWith('['))) {
+          const parsed = JSON.parse(rawContent);
+          
+          // Extract Arweave TX ID
+          if (parsed.arweave) {
+            arweaveTxId = parsed.arweave;
+            console.log(`Found Arweave TX ID: ${arweaveTxId}`);
           }
-        } catch {
-          // It's not valid JSON, keep the original string
-          console.log('Content is not valid JSON, using as-is');
+        }
+      } catch (jsonError) {
+        console.error('Error parsing JSON:', jsonError);
+      }
+      
+      // Step 4: If we have an Arweave TX ID, fetch the actual content
+      if (arweaveTxId) {
+        try {
+          console.log(`Fetching content from Arweave: ${arweaveTxId}`);
+          const arweaveUrl = `https://arweave.net/${arweaveTxId}`;
+          
+          const response = await fetch(arweaveUrl);
+          if (!response.ok) {
+            throw new Error(`Failed to fetch from Arweave: ${response.status}`);
+          }
+          
+          const arweaveContent = await response.text();
+          console.log('Successfully fetched content from Arweave');
+          
+          // Step 5: Parse the content to extract the relevant parts
+          content = extractRelevantContent(arweaveContent);
+        } catch (error) {
+          const fetchError = error as Error;
+          console.error('Error fetching from Arweave:', fetchError);
+          // Fall back to the raw content
+          content = `Failed to fetch diary entry from Arweave (${arweaveTxId}). Error: ${fetchError.message}`;
         }
       }
       
       // Create and return the diary entry
       return {
-        content: typeof content === 'string' ? content : `[Complex diary entry for round ${round}]`,
+        content,
         timestamp: new Date().toISOString(),
         round,
         sentiment: getSentiment(typeof content === 'string' ? content : ''),
@@ -287,6 +330,48 @@ async function fetchDiaryEntry(agentAddress: string, round: number): Promise<Dia
     console.error(`Error fetching diary for round ${round}:`, error);
     return null;
   }
+}
+
+// Helper function to extract relevant content from Arweave data
+function extractRelevantContent(fullContent: string): string {
+  // Extract content between <observe> and </observe> tags
+  let content = '';
+  
+  // Try to extract <observe> section
+  const observeMatch = /<observe>([\s\S]*?)<\/observe>/i.exec(fullContent);
+  if (observeMatch && observeMatch[1]) {
+    content += observeMatch[1].trim();
+  }
+  
+  // Try to extract <journal> section
+  const journalMatch = /<journal>([\s\S]*?)<\/journal>/i.exec(fullContent);
+  if (journalMatch && journalMatch[1]) {
+    if (content) content += '\n\n';
+    content += journalMatch[1].trim();
+  }
+  
+  // Try to extract <new_objectives> section
+  const objectivesMatch = /<new_objectives>([\s\S]*?)<\/new_objectives>/i.exec(fullContent);
+  if (objectivesMatch && objectivesMatch[1]) {
+    if (content) content += '\n\n';
+    content += objectivesMatch[1].trim();
+  }
+  
+  // If we couldn't extract any of the specific sections, use everything after <observe>
+  if (!content) {
+    const observeIndex = fullContent.indexOf('<observe>');
+    if (observeIndex !== -1) {
+      content = fullContent.substring(observeIndex + '<observe>'.length).trim();
+      
+      // Remove any remaining tags
+      content = content.replace(/<\/?[^>]+(>|$)/g, '');
+    } else {
+      // If there's no <observe> tag, just use the whole content
+      content = fullContent;
+    }
+  }
+  
+  return content.trim();
 }
 
 // Simple sentiment analysis function

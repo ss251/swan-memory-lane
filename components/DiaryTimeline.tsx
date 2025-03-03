@@ -12,6 +12,33 @@ const DiaryEntry = ({ entry, isFirst }: { entry: DiaryEntryType; isFirst: boolea
   const [expanded, setExpanded] = useState(isFirst);
   const sentimentColor = getSentimentColor(entry.sentiment);
 
+  // Function to format diary content with paragraphs
+  const formatDiaryContent = (content: string) => {
+    // Split content by double newlines to identify paragraphs
+    const paragraphs = content.split(/\n\n+/);
+    
+    return (
+      <div className="space-y-3">
+        {paragraphs.map((paragraph, i) => {
+          // Check if this is a heading-like paragraph (numbered list item or all caps)
+          const isHeading = /^\d+\.\s/.test(paragraph) || 
+                           paragraph.toUpperCase() === paragraph && paragraph.length > 10;
+          
+          return (
+            <div key={i} className={isHeading ? "font-medium" : ""}>
+              {/* Split by single newlines to preserve list formatting */}
+              {paragraph.split('\n').map((line, j) => (
+                <div key={j} className={line.startsWith('-') ? "pl-2" : ""}>
+                  {line}
+                </div>
+              ))}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
   return (
     <motion.div 
       className={cn(
@@ -79,7 +106,9 @@ const DiaryEntry = ({ entry, isFirst }: { entry: DiaryEntryType; isFirst: boolea
               transition={{ duration: 0.2 }}
               className="overflow-hidden"
             >
-              <p className="mt-2 text-xs sm:text-sm text-muted-foreground">{entry.content}</p>
+              <div className="mt-2 text-xs sm:text-sm text-muted-foreground">
+                {formatDiaryContent(entry.content)}
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
