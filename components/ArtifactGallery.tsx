@@ -87,13 +87,15 @@ const ArtifactCard: React.FC<ArtifactCardProps> = ({ artifact, index }) => {
             <span>Round: {artifact.round}</span>
           </div>
           
-          <button 
-            className="w-full mt-2 bg-white/10 hover:bg-white/20 text-white rounded-md py-1 text-sm flex items-center justify-center"
-            onClick={() => window.open(`https://etherscan.io/address/${artifact.address}`, '_blank')}
+          <a 
+            href={`https://base.blockscout.com/address/${artifact.address}`}
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 flex items-center"
           >
             <ExternalLink className="h-3 w-3 mr-1" />
-            View on Etherscan
-          </button>
+            View on Blockscout
+          </a>
         </div>
       </motion.div>
     </motion.div>
@@ -111,13 +113,13 @@ const ArtifactCardSkeleton = ({ index }: { index: number }) => (
 );
 
 export function ArtifactGallery() {
-  const { currentAgent, isLoading } = useSwanContext();
+  const { currentAgent } = useSwanContext();
   const { 
     data: infiniteArtifacts, 
     isLoading: isArtifactsLoading,
-    fetchNextPage,
+    isFetchingNextPage,
     hasNextPage,
-    isFetchingNextPage
+    fetchNextPage
   } = useLoadMoreArtifacts();
   const [currentPage, setCurrentPage] = useState(0);
   const [totalArtifacts, setTotalArtifacts] = useState(0);
@@ -199,17 +201,14 @@ export function ArtifactGallery() {
     fetchNextPage();
   };
   
-  if (isLoading) {
+  if (isArtifactsLoading && displayedArtifacts.length === 0) {
     return (
       <div className="p-3 sm:p-4">
         <div className="h-7 w-48 bg-gray-200 dark:bg-gray-800 animate-pulse rounded mb-6"></div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-          <ArtifactCardSkeleton index={0} />
-          <ArtifactCardSkeleton index={1} />
-          <ArtifactCardSkeleton index={2} />
-          <ArtifactCardSkeleton index={3} />
-          <ArtifactCardSkeleton index={4} />
-          <ArtifactCardSkeleton index={5} />
+          {[...Array(ARTIFACTS_PER_PAGE)].map((_, index) => (
+            <ArtifactCardSkeleton key={index} index={index} />
+          ))}
         </div>
       </div>
     );
