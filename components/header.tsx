@@ -2,9 +2,10 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { GitHubLogoIcon } from '@radix-ui/react-icons';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { BookOpen, Menu, X, AlertCircle, User } from 'lucide-react';
+import { Menu, X, AlertCircle, User } from 'lucide-react';
 import { AgentSearch } from '@/components/AgentSearch';
 import { useSwanContext } from '@/lib/providers/SwanProvider';
 import { truncateString } from '@/lib/utils';
@@ -32,7 +33,13 @@ export function Header() {
         <div className="container mx-auto px-4 py-3 flex justify-between items-center">
           <Link href="/">
             <div className="flex items-center gap-2">
-              <BookOpen className="h-5 w-5 text-primary" />
+              <Image 
+                src="/images/swan-icon.svg" 
+                alt="Swan Logo" 
+                width={20} 
+                height={20} 
+                className="text-primary"
+              />
               <h1 className="text-lg sm:text-xl font-bold">Swan Memory Lane</h1>
               <span className="px-2 py-0.5 text-xs rounded-full bg-primary/10 text-primary">Beta</span>
             </div>
