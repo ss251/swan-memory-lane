@@ -406,12 +406,13 @@ async function fetchDiaryEntry(agentAddress: string, round: number): Promise<Dia
 
 // Helper function to extract relevant content from Arweave data
 function extractRelevantContent(fullContent: string): string {
-  // Extract content between <observe> and </observe> tags
+  // Extract content between tags but preserve the section names
   let content = '';
 
   // Try to extract <character_analysis> section
   const characterAnalysisMatch = /<character_analysis>([\s\S]*?)<\/character_analysis>/i.exec(fullContent);
   if (characterAnalysisMatch && characterAnalysisMatch[1]) {
+    content += '## CHARACTER ANALYSIS ##\n\n';
     content += characterAnalysisMatch[1].trim();
   }
   
@@ -419,6 +420,7 @@ function extractRelevantContent(fullContent: string): string {
   const observeMatch = /<observe>([\s\S]*?)<\/observe>/i.exec(fullContent);
   if (observeMatch && observeMatch[1]) {
     if (content) content += '\n\n';
+    content += '## OBSERVATIONS ##\n\n';
     content += observeMatch[1].trim();
   }
   
@@ -426,6 +428,7 @@ function extractRelevantContent(fullContent: string): string {
   const journalMatch = /<journal>([\s\S]*?)<\/journal>/i.exec(fullContent);
   if (journalMatch && journalMatch[1]) {
     if (content) content += '\n\n';
+    content += '## JOURNAL ##\n\n';
     content += journalMatch[1].trim();
   }
   
@@ -433,6 +436,7 @@ function extractRelevantContent(fullContent: string): string {
   const objectivesMatch = /<new_objectives>([\s\S]*?)<\/new_objectives>/i.exec(fullContent);
   if (objectivesMatch && objectivesMatch[1]) {
     if (content) content += '\n\n';
+    content += '## OBJECTIVES ##\n\n';
     content += objectivesMatch[1].trim();
   }
   

@@ -9,35 +9,177 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { Button } from "@/components/ui/button";
 
+const diaryStyles = `
+  .diary-content {
+    font-size: 0.95rem;
+  }
+  
+  .diary-section {
+    margin-bottom: 1rem;
+    border-left: 3px solid #e2e8f0;
+    padding-left: 0.75rem;
+    transition: all 0.2s ease;
+  }
+  
+  .dark .diary-section {
+    border-left-color: #334155;
+  }
+  
+  .diary-section:hover {
+    border-left-color: #3b82f6;
+  }
+  
+  .diary-section-header {
+    display: flex;
+    align-items: center;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: #475569;
+    letter-spacing: 0.02em;
+    text-transform: capitalize;
+  }
+  
+  .dark .diary-section-header {
+    color: #94a3b8;
+  }
+  
+  .diary-section-icon {
+    margin-right: 0.5rem;
+    font-size: 1rem;
+  }
+  
+  .diary-section-content {
+    font-size: 0.9rem;
+  }
+  
+  .diary-section-content p {
+    margin-bottom: 0.75rem;
+    line-height: 1.5;
+  }
+  
+  .diary-section-content p:last-child {
+    margin-bottom: 0;
+  }
+  
+  /* Numbered list styling */
+  .diary-section-content ol {
+    list-style-type: decimal;
+    padding-left: 1.5rem;
+    margin-bottom: 0.75rem;
+  }
+  
+  .diary-section-content li {
+    margin-bottom: 0.5rem;
+    padding-left: 0.25rem;
+  }
+  
+  /* Handle inline numbered lists that aren't proper HTML lists */
+  .diary-section-content p.numbered-list {
+    padding-left: 1rem;
+    text-indent: -1rem;
+  }
+`;
+
 const DiaryEntry = ({ entry, isFirst }: { entry: DiaryEntryType; isFirst: boolean }) => {
   const [expanded, setExpanded] = useState(isFirst);
   const sentimentColor = getSentimentColor(entry.sentiment);
 
   // Function to format diary content with paragraphs
   const formatDiaryContent = (content: string) => {
-    // Split content by double newlines to identify paragraphs
-    const paragraphs = content.split(/\n\n+/);
+    // Check if content is empty or undefined
+    if (!content) return '';
     
-    return (
-      <div className="space-y-3">
-        {paragraphs.map((paragraph, i) => {
-          // Check if this is a heading-like paragraph (numbered list item or all caps)
-          const isHeading = /^\d+\.\s/.test(paragraph) || 
-                           paragraph.toUpperCase() === paragraph && paragraph.length > 10;
+    // Map section headers to icons
+    const sectionIcons: Record<string, string> = {
+      'CHARACTER ANALYSIS': '👤',
+      'OBSERVATIONS': '👁️',
+      'JOURNAL': '📔',
+      'OBJECTIVES': '🎯',
+      'REFLECTIONS': '💭',
+      'ACTIONS': '⚡',
+      'EMOTIONS': '😊',
+      'DECISIONS': '🔄'
+    };
+    
+    // Helper function to format paragraphs with proper list handling
+    const formatParagraphs = (text: string) => {
+      return text.split('\n\n').map(paragraph => {
+        if (!paragraph.trim()) return '';
+        
+        // Check if this is a numbered list paragraph
+        if (paragraph.includes('\n1.') || paragraph.includes('\n2.') || 
+            paragraph.match(/^\d+\.\s/)) {
           
-          return (
-            <div key={i} className={isHeading ? "font-medium" : ""}>
-              {/* Split by single newlines to preserve list formatting */}
-              {paragraph.split('\n').map((line, j) => (
-                <div key={j} className={line.startsWith('-') ? "pl-2" : ""}>
-                  {line}
-                </div>
-              ))}
-            </div>
-          );
-        })}
-      </div>
-    );
+          // Split by newlines to process each line
+          const lines = paragraph.split('\n');
+          
+          // Check if all lines are numbered
+          const allNumbered = lines.every(line => line.match(/^\d+[\.\)]\s/));
+          
+          if (allNumbered) {
+            // This is a proper numbered list
+            return `<ol>${lines.map(line => {
+              // Extract the content after the number
+              const content = line.replace(/^\d+[\.\)]\s/, '');
+              return `<li>${content}</li>`;
+            }).join('')}</ol>`;
+          } else {
+            // Mixed content, format each line individually
+            return lines.map(line => {
+              if (line.match(/^\d+[\.\)]\s/)) {
+                return `<p class="numbered-list">${line}</p>`;
+              }
+              return `<p>${line}</p>`;
+            }).join('');
+          }
+        }
+        
+        // Regular paragraph
+        return `<p>${paragraph}</p>`;
+      }).join('');
+    };
+    
+    // Split content by section headers (## SECTION ##)
+    const sections = content.split(/##\s+([A-Z\s]+)\s+##/);
+    let formattedContent = '';
+    
+    // If no sections found, wrap the whole content
+    if (sections.length <= 1) {
+      return `<div class="diary-section">
+        <div class="diary-section-content">
+          ${formatParagraphs(content)}
+        </div>
+      </div>`;
+    }
+    
+    // Process sections
+    for (let i = 1; i < sections.length; i += 2) {
+      const sectionName = sections[i];
+      const sectionContent = sections[i + 1]?.trim() || '';
+      
+      // Get icon for this section
+      const icon = sectionIcons[sectionName] || '📝';
+      
+      // Format section name for display (Title Case)
+      const formattedSectionName = sectionName
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(' ');
+      
+      // Format section
+      formattedContent += `<div class="diary-section">
+        <h3 class="diary-section-header">
+          <span class="diary-section-icon">${icon}</span>
+          ${formattedSectionName}
+        </h3>
+        <div class="diary-section-content">
+          ${formatParagraphs(sectionContent)}
+        </div>
+      </div>`;
+    }
+    
+    return formattedContent;
   };
 
   return (
@@ -119,8 +261,18 @@ const DiaryEntry = ({ entry, isFirst }: { entry: DiaryEntryType; isFirst: boolea
               transition={{ duration: 0.2 }}
               className="overflow-hidden"
             >
-              <div className="mt-2 text-xs sm:text-sm text-muted-foreground">
-                {formatDiaryContent(entry.content)}
+              <div 
+                className={cn(
+                  "prose prose-sm dark:prose-invert max-w-none mt-2 overflow-hidden transition-all duration-300",
+                  expanded ? "max-h-none" : "max-h-24"
+                )}
+              >
+                <div 
+                  className="diary-content"
+                  dangerouslySetInnerHTML={{ 
+                    __html: formatDiaryContent(entry.content) 
+                  }} 
+                />
               </div>
             </motion.div>
           )}
@@ -233,6 +385,19 @@ export function DiaryTimeline({ agentAddress }: { agentAddress?: string }) {
       setError("Failed to refresh diary entries.");
     }
   };
+  
+  // Add styles to the document
+  useEffect(() => {
+    // Add the styles to the document
+    const styleElement = document.createElement('style');
+    styleElement.innerHTML = diaryStyles;
+    document.head.appendChild(styleElement);
+    
+    // Cleanup on unmount
+    return () => {
+      document.head.removeChild(styleElement);
+    };
+  }, []);
   
   if (isLoading) {
     return (
