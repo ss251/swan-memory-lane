@@ -1,3 +1,4 @@
+// app/agent/[address]/page.tsx
 import React from 'react';
 import { AgentProfile } from '@/components/AgentProfile';
 import { DiaryTimeline } from '@/components/DiaryTimeline';
@@ -5,16 +6,13 @@ import { ArtifactGallery } from '@/components/ArtifactGallery';
 import { Header } from '@/components/header';
 import { SwanProvider } from '@/lib/providers/SwanProvider';
 
-// Define the page props with params
-interface AgentPageProps {
-  params: {
-    address: string;
-  };
-}
-
-export default async function AgentPage({ params }: AgentPageProps) {
-  // In Next.js 13+, we need to properly handle params by making the component async
-  const address = params.address;
+export default async function AgentPage({
+  params,
+}: {
+  params: Promise<{ address: string }>
+}) {
+  const resolvedParams = await params;
+  const address = resolvedParams.address;
   
   return (
     <SwanProvider>
@@ -44,4 +42,4 @@ export default async function AgentPage({ params }: AgentPageProps) {
       </div>
     </SwanProvider>
   );
-} 
+}
