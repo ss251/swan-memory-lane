@@ -32,10 +32,15 @@ export interface DiaryEntry {
   sentiment?: 'positive' | 'neutral' | 'negative';
 }
 
-export function useAgentData(agentAddress = DEFAULT_AGENT_ADDRESS) {
+export function useAgentData(agentAddress?: string) {
   return useQuery({
     queryKey: ['agentData', agentAddress],
     queryFn: async (): Promise<AgentData> => {
+      // Check if we have an address to query
+      if (!agentAddress) {
+        throw new Error('No agent address provided');
+      }
+      
       try {
         // Try to fetch real data from the blockchain
         let name, description, round, treasuryBigInt;
@@ -196,6 +201,11 @@ export async function fetchMoreDiaryEntries(
 ): Promise<DiaryEntry[]> {
   try {
     console.log(`Fetching more diary entries for agent ${agentAddress}`);
+    console.log(`Current entries: ${currentEntries.length} entries with rounds: ${currentEntries.map(e => e.round).join(', ')}`);
+    
+    // Create a set of rounds that we already have
+    const existingRounds = new Set(currentEntries.map(e => e.round));
+    console.log(`Existing rounds: ${Array.from(existingRounds).join(', ')}`);
     
     // Find the lowest round we already have
     const lowestExistingRound = Math.min(...currentEntries.map(e => e.round));
@@ -203,6 +213,7 @@ export async function fetchMoreDiaryEntries(
     
     // Start searching from one round lower
     const startRound = Math.max(1, lowestExistingRound - 1);
+    console.log(`Starting search from round ${startRound}`);
     
     // New diary entries we'll return
     const newEntries: DiaryEntry[] = [];
@@ -210,12 +221,20 @@ export async function fetchMoreDiaryEntries(
     
     // Search backwards for more entries
     for (let r = startRound; r >= 1 && fetchedEntries < maxAdditionalEntries; r--) {
+      // Skip rounds we already have
+      if (existingRounds.has(r)) {
+        console.log(`Skipping round ${r} as it already exists`);
+        continue;
+      }
+      
       try {
         const entry = await fetchDiaryEntry(agentAddress, r);
         if (entry) {
           console.log(`Found new diary entry for round ${r}`);
           newEntries.push(entry);
           fetchedEntries++;
+        } else {
+          console.log(`No entry found for round ${r}`);
         }
       } catch (error) {
         const err = error as Error;
@@ -223,7 +242,7 @@ export async function fetchMoreDiaryEntries(
       }
     }
     
-    console.log(`Found ${newEntries.length} new diary entries`);
+    console.log(`Found ${newEntries.length} new diary entries with rounds: ${newEntries.map(e => e.round).join(', ')}`);
     return newEntries;
   } catch (error) {
     console.error('Error fetching more diary entries:', error);

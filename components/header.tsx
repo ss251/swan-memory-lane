@@ -30,12 +30,13 @@ export function Header() {
       )}
       <header className="border-b border-border sticky top-0 bg-background/95 backdrop-blur-sm z-10">
         <div className="container mx-auto px-4 py-3 flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <BookOpen className="h-5 w-5 text-primary" />
-            <h1 className="text-lg sm:text-xl font-bold">Swan Memory Lane</h1>
-            <span className="px-2 py-0.5 text-xs rounded-full bg-primary/10 text-primary">Beta</span>
-          </div>
-          
+          <Link href="/">
+            <div className="flex items-center gap-2">
+              <BookOpen className="h-5 w-5 text-primary" />
+              <h1 className="text-lg sm:text-xl font-bold">Swan Memory Lane</h1>
+              <span className="px-2 py-0.5 text-xs rounded-full bg-primary/10 text-primary">Beta</span>
+            </div>
+          </Link>
           {/* Agent Search - Desktop */}
           <div className="hidden md:block w-1/3 mx-4">
             <AgentSearch />

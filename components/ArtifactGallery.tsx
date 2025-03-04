@@ -106,39 +106,46 @@ const ArtifactCardSkeleton = ({ index }: { index: number }) => (
   />
 );
 
-export function ArtifactGallery() {
-  const { currentAgent } = useSwanContext();
+export function ArtifactGallery({ agentAddress }: { agentAddress?: string }) {
+  const { currentAgent, selectAgent, refreshAgentData } = useSwanContext();
   const { 
     data: infiniteArtifacts, 
     isLoading: isArtifactsLoading,
     isFetchingNextPage,
     hasNextPage,
     fetchNextPage
-  } = useLoadMoreArtifacts();
+  } = useLoadMoreArtifacts(agentAddress);
+  
   const [currentPage, setCurrentPage] = useState(0);
   const [totalArtifacts, setTotalArtifacts] = useState(0);
   
-  // Keep track of all artifacts across pages for internal pagination
-  const [allArtifacts, setAllArtifacts] = useState<Artifact[]>([]);
+  // Use the provided agentAddress if available
+  useEffect(() => {
+    if (agentAddress) {
+      selectAgent(agentAddress);
+    }
+  }, [agentAddress, selectAgent]);
+  
+  // Flatten artifacts from all pages 
+  const flattenedArtifacts = React.useMemo(() => {
+    if (!infiniteArtifacts) return [];
+    
+    // Combine all artifacts from all pages
+    return infiniteArtifacts.pages.flatMap(page => page.artifacts);
+  }, [infiniteArtifacts]);
   
   // Compute combined artifacts from both sources (infinite query and current agent)
   useEffect(() => {
     console.log("Processing artifacts data:", { 
-      infiniteArtifacts: infiniteArtifacts?.pages?.length,
+      infiniteArtifactsLength: flattenedArtifacts.length,
       currentAgent: !!currentAgent
     });
 
-    const artifactsFromPages = infiniteArtifacts?.pages
-      ? infiniteArtifacts.pages.flatMap(page => page.artifacts)
-      : [];
-      
-    console.log(`Found ${artifactsFromPages.length} artifacts from infinite query`);
-      
     const agentArtifacts = currentAgent?.artifacts || [];
     console.log(`Found ${agentArtifacts.length} artifacts from current agent`);
     
     // Combine artifacts from both sources, eliminate duplicates by address
-    const uniqueArtifacts = [...artifactsFromPages];
+    const uniqueArtifacts = [...flattenedArtifacts];
     
     // Add artifacts from agent if they're not already in the list
     agentArtifacts.forEach(agentArtifact => {
@@ -153,18 +160,17 @@ export function ArtifactGallery() {
     console.log(`Total unique artifacts after combining: ${uniqueArtifacts.length}`);
     console.log(`Setting ${sortedArtifacts.length} sorted artifacts`);
     
-    setAllArtifacts(sortedArtifacts);
     setTotalArtifacts(sortedArtifacts.length);
-  }, [infiniteArtifacts?.pages, currentAgent?.artifacts]);
+  }, [flattenedArtifacts, currentAgent?.artifacts]);
   
   // Get artifacts for the current page
-  const displayedArtifacts = allArtifacts.slice(
+  const displayedArtifacts = flattenedArtifacts.slice(
     currentPage * ARTIFACTS_PER_PAGE, 
     (currentPage + 1) * ARTIFACTS_PER_PAGE
-  );
+  ) || [];
   
   // Calculate total number of pages
-  const totalPages = Math.ceil(allArtifacts.length / ARTIFACTS_PER_PAGE);
+  const totalPages = Math.ceil(totalArtifacts / ARTIFACTS_PER_PAGE);
   
   // Pagination functions
   const goToNextPage = () => {
@@ -185,14 +191,18 @@ export function ArtifactGallery() {
       console.log('Cannot fetch next page:', { 
         hasNextPage, 
         isFetchingNextPage, 
-        infinitePagesCount: infiniteArtifacts?.pages?.length || 0 
+        infiniteArtifactsCount: flattenedArtifacts.length
       });
     }
   };
   
-  // Function to search earlier rounds
-  const handleRetryEarlierRounds = () => {
-    fetchNextPage();
+  // Add a refresh function
+  const handleRefresh = async () => {
+    try {
+      await refreshAgentData();
+    } catch (error) {
+      console.error('Failed to refresh artifacts:', error);
+    }
   };
   
   if (isArtifactsLoading && displayedArtifacts.length === 0) {
@@ -233,10 +243,19 @@ export function ArtifactGallery() {
         </h2>
         
         <div className="flex space-x-2">
-          {isArtifactsLoading && (
+          {isArtifactsLoading ? (
             <div className="flex items-center text-sm text-muted-foreground">
               <RefreshCw className="h-3 w-3 mr-1 animate-spin" /> Loading...
             </div>
+          ) : (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleRefresh}
+              disabled={isArtifactsLoading || isFetchingNextPage}
+            >
+              <RefreshCw className="h-3 w-3 mr-1" /> Refresh
+            </Button>
           )}
         </div>
       </div>
@@ -244,7 +263,7 @@ export function ArtifactGallery() {
       {displayedArtifacts.length > 0 ? (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-            {displayedArtifacts.map((artifact, index) => (
+            {displayedArtifacts.map((artifact: Artifact, index: number) => (
               <ArtifactCard 
                 key={artifact.address} 
                 artifact={artifact} 
@@ -319,8 +338,8 @@ export function ArtifactGallery() {
             <p className="text-sm text-muted-foreground mb-4">
               Try searching earlier rounds to find artifacts.
             </p>
-            <Button onClick={handleRetryEarlierRounds} disabled={isArtifactsLoading || isFetchingNextPage}>
-              <RefreshCw className="h-4 w-4 mr-2" /> Search Earlier Rounds
+            <Button onClick={handleLoadMore} disabled={isArtifactsLoading || isFetchingNextPage}>
+              <RefreshCw className="h-4 w-4 mr-2" /> Load More Artifacts
             </Button>
           </div>
         )

@@ -1,8 +1,6 @@
 import React from 'react';
 import { SwanProvider } from '@/lib/providers/SwanProvider';
-import { AgentProfile } from '@/components/AgentProfile';
-import { DiaryTimeline } from '@/components/DiaryTimeline';
-import { ArtifactGallery } from '@/components/ArtifactGallery';
+import { AgentList } from '@/components/AgentList';
 import { Header } from '@/components/header';
 
 export default function Home() {
@@ -12,15 +10,10 @@ export default function Home() {
         <Header />
         
         <main className="container mx-auto px-4 py-6 sm:py-8">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
-            <div className="lg:col-span-1 order-1 lg:order-1">
-              <AgentProfile />
-            </div>
+          <div className="space-y-8">
             
-            <div className="lg:col-span-2 space-y-6 sm:space-y-8 order-2 lg:order-2">
-              <DiaryTimeline />
-              <ArtifactGallery />
-            </div>
+            
+            <AgentList />
           </div>
         </main>
         

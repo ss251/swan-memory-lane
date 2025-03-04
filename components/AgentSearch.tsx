@@ -8,7 +8,7 @@ import { useSwanContext } from '@/lib/providers/SwanProvider';
 import { DEFAULT_AGENT_ADDRESS } from '@/lib/hooks/useAgentData';
 
 export function AgentSearch() {
-  const { loadAgentByAddress, isLoading, currentAgentAddress } = useSwanContext();
+  const { selectAgent, isLoading, currentAgentAddress } = useSwanContext();
   const [searchInput, setSearchInput] = useState('');
   const [isValidAddress, setIsValidAddress] = useState(true);
 
@@ -33,7 +33,7 @@ export function AgentSearch() {
     if (!searchInput) return;
     
     if (validateAddress(searchInput)) {
-      loadAgentByAddress(searchInput);
+      selectAgent(searchInput);
     } else {
       setIsValidAddress(false);
     }
@@ -48,7 +48,7 @@ export function AgentSearch() {
   const handleReset = () => {
     setSearchInput('');
     setIsValidAddress(true);
-    loadAgentByAddress(DEFAULT_AGENT_ADDRESS);
+    selectAgent(DEFAULT_AGENT_ADDRESS);
   };
 
   return (

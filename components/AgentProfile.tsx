@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   User, 
@@ -14,7 +14,8 @@ import {
   Info, 
   Tag, 
   Clock, 
-  ExternalLink
+  ExternalLink,
+  RefreshCw
 } from 'lucide-react';
 import { useSwanContext } from '@/lib/providers/SwanProvider';
 import { formatDate, truncateString } from '@/lib/utils';
@@ -95,14 +96,39 @@ const formatAgentDescription = (description: string) => {
   );
 };
 
-export function AgentProfile() {
-  const { currentAgent, isLoading, isArtifactsLoading, isDiaryLoading } = useSwanContext();
+export function AgentProfile({ agentAddress }: { agentAddress?: string }) {
+  const { currentAgent, isLoading, selectAgent, refreshAgentData } = useSwanContext();
   const [copied, setCopied] = useState(false);
+  const [artifactCount, setArtifactCount] = useState(0);
+  const [diaryCount, setDiaryCount] = useState(0);
+  
+  // Use the provided agentAddress if available
+  useEffect(() => {
+    if (agentAddress) {
+      selectAgent(agentAddress);
+    }
+  }, [agentAddress, selectAgent]);
+  
+  // Update stats when currentAgent changes
+  useEffect(() => {
+    if (currentAgent) {
+      setArtifactCount(currentAgent.artifacts.length);
+      setDiaryCount(currentAgent.diaryEntries.length);
+    }
+  }, [currentAgent]);
   
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleRefresh = async () => {
+    try {
+      await refreshAgentData();
+    } catch (error) {
+      console.error('Failed to refresh agent profile:', error);
+    }
   };
   
   if (isLoading) {
@@ -149,13 +175,27 @@ export function AgentProfile() {
     );
   }
   
-  if (!currentAgent) {
+  // Only show "No agent selected" if we don't have a current agent AND no address was provided
+  if (!currentAgent && !agentAddress) {
     return (
       <div className="p-6 text-center">
         <User className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
         <h3 className="text-lg font-medium">No Agent Selected</h3>
         <p className="text-sm text-muted-foreground mt-2">
           Select an agent to view their profile.
+        </p>
+      </div>
+    );
+  }
+  
+  // If we have an address but no agent yet, show loading
+  if (!currentAgent && agentAddress) {
+    return (
+      <div className="p-6 text-center">
+        <User className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+        <h3 className="text-lg font-medium">Loading Agent...</h3>
+        <p className="text-sm text-muted-foreground mt-2">
+          Fetching data for {truncateString(agentAddress, 20)}
         </p>
       </div>
     );
@@ -168,121 +208,122 @@ export function AgentProfile() {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
     >
-      <div className="flex flex-col sm:flex-row sm:items-start">
-        <div className="bg-primary/10 rounded-full p-3 mb-4 sm:mb-0 sm:mr-4 self-start">
-          <User className="h-8 w-8 text-primary" />
-        </div>
-        
-        <div className="flex-1">
-          <h2 className="text-xl sm:text-2xl font-bold">{currentAgent.name}</h2>
-          
-          {/* Address with copy and etherscan buttons */}
-          <div className="mt-1 flex flex-wrap items-center gap-2">
-            <div className="text-xs sm:text-sm text-muted-foreground font-mono bg-muted/30 px-2 py-1 rounded">
-              {truncateString(currentAgent.address, 20)}
+      {currentAgent && (
+        <>
+          <div className="flex flex-col sm:flex-row sm:items-start">
+            <div className="bg-primary/10 rounded-full p-3 mb-4 sm:mb-0 sm:mr-4 self-start">
+              <User className="h-8 w-8 text-primary" />
             </div>
             
-            <button 
-              className="inline-flex items-center text-primary hover:text-primary/80 text-xs"
-              onClick={() => copyToClipboard(currentAgent.address)}
-              title="Copy address"
-            >
-              {copied ? (
-                <Check className="h-3 w-3 mr-1" />
-              ) : (
-                <Copy className="h-3 w-3 mr-1" />
-              )}
-              <span>{copied ? 'Copied!' : 'Copy'}</span>
-            </button>
-            
-            <Button 
-              variant="outline" 
-              size="sm"
-              className="ml-2"
-              onClick={() => window.open(`https://base.blockscout.com/address/${currentAgent.address}`, '_blank')}
-            >
-              <ExternalLink className="h-4 w-4 mr-2" />
-              View on Blockscout
-            </Button>
-          </div>
-        </div>
-      </div>
-      
-      <div className="mt-4">
-        <h3 className="text-sm font-medium flex items-center">
-          <Info className="h-4 w-4 mr-2 text-muted-foreground" />
-          Description
-        </h3>
-        {formatAgentDescription(currentAgent.description)}
-      </div>
-      
-      <div className="grid grid-cols-1 xs:grid-cols-2 gap-3 sm:gap-4 mt-6">
-        <InfoCard 
-          icon={<Calendar className="h-4 w-4 text-blue-500" />}
-          label="Created On"
-          value={formatDate(currentAgent.createdAt)}
-          colorClass="bg-blue-500/10"
-        />
-        
-        <InfoCard 
-          icon={<Wallet className="h-4 w-4 text-green-500" />}
-          label="Treasury"
-          value={`${currentAgent.treasury} ETH`}
-          colorClass="bg-green-500/10"
-        />
-        
-        <InfoCard 
-          icon={<Tag className="h-4 w-4 text-amber-500" />}
-          label="Listing Fee"
-          value={`${currentAgent.listingFee}%`}
-          colorClass="bg-amber-500/10"
-        />
-        
-        <InfoCard 
-          icon={<Clock className="h-4 w-4 text-purple-500" />}
-          label="Current Round"
-          value={`Round ${currentAgent.currentRound}`}
-          colorClass="bg-purple-500/10"
-        />
-      </div>
-      
-      <div className="mt-6 bg-muted/50 rounded-lg p-3 sm:p-4">
-        <h3 className="text-sm font-medium mb-2">Agent Stats</h3>
-        
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <div className="text-xs text-muted-foreground flex items-center">
-              Artifacts Collected
-              {isArtifactsLoading && (
-                <div className="ml-1 h-2 w-2 rounded-full bg-primary animate-pulse"></div>
-              )}
-            </div>
-            <div className="font-semibold">
-              {isArtifactsLoading ? (
-                <div className="inline-block w-6 h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
-              ) : (
-                currentAgent.artifacts.length
-              )}
+            <div className="flex-1">
+              <h2 className="text-xl sm:text-2xl font-bold">{currentAgent.name}</h2>
+              
+              {/* Address with copy, etherscan and refresh buttons */}
+              <div className="mt-1 flex flex-wrap items-center gap-2">
+                <div className="text-xs sm:text-sm text-muted-foreground font-mono bg-muted/30 px-2 py-1 rounded">
+                  {truncateString(currentAgent.address, 20)}
+                </div>
+                
+                <button 
+                  className="inline-flex items-center text-primary hover:text-primary/80 text-xs"
+                  onClick={() => copyToClipboard(currentAgent.address)}
+                  title="Copy address"
+                >
+                  {copied ? (
+                    <Check className="h-3 w-3 mr-1" />
+                  ) : (
+                    <Copy className="h-3 w-3 mr-1" />
+                  )}
+                  <span>{copied ? 'Copied!' : 'Copy'}</span>
+                </button>
+                
+                <div className="flex space-x-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => window.open(`https://base.blockscout.com/address/${currentAgent.address}`, '_blank')}
+                  >
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    View on Blockscout
+                  </Button>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleRefresh}
+                    disabled={isLoading}
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Refresh
+                  </Button>
+                </div>
+              </div>
             </div>
           </div>
           
-          <div>
-            <div className="text-xs text-muted-foreground flex items-center">
-              Diary Entries
-              {isDiaryLoading && (
-                <div className="ml-1 h-2 w-2 rounded-full bg-primary animate-pulse"></div>
-              )}
-            </div>
-            <div className="font-semibold">
-              {isDiaryLoading ? (
-                <div className="inline-block w-6 h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
-              ) : (
-                currentAgent.diaryEntries.length
-              )}
+          <div className="mt-4">
+            <h3 className="text-sm font-medium flex items-center">
+              <Info className="h-4 w-4 mr-2 text-muted-foreground" />
+              Description
+            </h3>
+            {formatAgentDescription(currentAgent.description)}
+          </div>
+          
+          <div className="grid grid-cols-1 xs:grid-cols-2 gap-3 sm:gap-4 mt-6">
+            <InfoCard 
+              icon={<Calendar className="h-4 w-4 text-blue-500" />}
+              label="Created On"
+              value={formatDate(currentAgent.createdAt)}
+              colorClass="bg-blue-500/10"
+            />
+            
+            <InfoCard 
+              icon={<Wallet className="h-4 w-4 text-green-500" />}
+              label="Treasury"
+              value={`${currentAgent.treasury} ETH`}
+              colorClass="bg-green-500/10"
+            />
+            
+            <InfoCard 
+              icon={<Tag className="h-4 w-4 text-amber-500" />}
+              label="Listing Fee"
+              value={`${currentAgent.listingFee}%`}
+              colorClass="bg-amber-500/10"
+            />
+            
+            <InfoCard 
+              icon={<Clock className="h-4 w-4 text-purple-500" />}
+              label="Current Round"
+              value={`Round ${currentAgent.currentRound}`}
+              colorClass="bg-purple-500/10"
+            />
+          </div>
+          
+          <div className="mt-6 bg-muted/50 rounded-lg p-3 sm:p-4">
+            <h3 className="text-sm font-medium mb-2">Agent Stats</h3>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <div className="text-xs text-muted-foreground flex items-center">
+                  Artifacts Collected
+                </div>
+                <div className="font-semibold">
+                  {artifactCount}
+                </div>
+              </div>
+              
+              <div>
+                <div className="text-xs text-muted-foreground flex items-center">
+                  Diary Entries
+                </div>
+                <div className="font-semibold">
+                  {diaryCount}
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
+        </>
+      )}
     </motion.div>
   );
 }

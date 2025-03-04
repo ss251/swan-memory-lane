@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSwanContext } from '@/lib/providers/SwanProvider';
 import { DiaryEntry as DiaryEntryType, fetchMoreDiaryEntries } from '@/lib/hooks/useAgentData';
 import { formatDate, getSentimentColor } from '@/lib/utils';
@@ -138,35 +138,87 @@ const LoadingEntry = ({ index }: { index: number }) => (
   </div>
 );
 
-export function DiaryTimeline() {
-  const { currentAgent, isLoading, isDiaryLoading, setDiaryEntries } = useSwanContext();
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
+export function DiaryTimeline({ agentAddress }: { agentAddress?: string }) {
+  const { 
+    currentAgent, 
+    isLoading, 
+    isDiaryLoading, 
+    updateDiaryEntries, 
+    selectAgent,
+    refreshAgentData 
+  } = useSwanContext();
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [localEntries, setLocalEntries] = useState<DiaryEntryType[]>([]);
   
+  // Use the provided agentAddress if available
+  useEffect(() => {
+    if (agentAddress) {
+      selectAgent(agentAddress);
+    }
+  }, [agentAddress, selectAgent]);
+
+  // Track when diary entries change
+  useEffect(() => {
+    if (currentAgent?.diaryEntries) {
+      console.log(`DiaryTimeline: Agent entries updated: ${currentAgent.diaryEntries.length} entries`);
+      // Keep a local copy of entries to force re-render
+      setLocalEntries(currentAgent.diaryEntries);
+    }
+  }, [currentAgent?.diaryEntries]);
+
   // Sort diary entries by round in descending order (newest first)
-  const sortedDiaryEntries = currentAgent?.diaryEntries 
-    ? [...currentAgent.diaryEntries].sort((a, b) => b.round - a.round) 
-    : [];
+  const sortedDiaryEntries = localEntries.length > 0 
+    ? [...localEntries].sort((a, b) => b.round - a.round) 
+    : currentAgent?.diaryEntries 
+      ? [...currentAgent.diaryEntries].sort((a, b) => b.round - a.round) 
+      : [];
   
   // Function to load more diary entries
   const handleLoadMore = async () => {
-    if (!currentAgent || isLoadingMore) return;
+    if (!currentAgent || loadingMore) return;
     
-    setIsLoadingMore(true);
+    setLoadingMore(true);
+    setError(null); // Reset error state
+    
     try {
+      console.log(`Loading more entries for agent: ${currentAgent.address}`);
+      console.log(`Current entries: ${currentAgent.diaryEntries.length} with rounds: ${[...currentAgent.diaryEntries].sort((a, b) => b.round - a.round).map(e => e.round).join(', ')}`);
+      
       const newEntries = await fetchMoreDiaryEntries(
         currentAgent.address, 
         currentAgent.diaryEntries,
-        5 // Fetch 5 more entries
+        5 // Load 5 more diary entries
       );
       
-      if (newEntries.length > 0 && setDiaryEntries) {
-        // Add the new entries to the existing ones
-        setDiaryEntries([...currentAgent.diaryEntries, ...newEntries]);
+      if (newEntries.length > 0) {
+        console.log(`Found ${newEntries.length} new entries with rounds: ${newEntries.map(e => e.round).join(', ')}`);
+        
+        // Just pass all entries to the provider - it will handle merging and deduplication
+        const allEntries = [...currentAgent.diaryEntries, ...newEntries];
+        console.log(`Passing ${allEntries.length} total entries to provider`);
+        
+        // Update the provider state directly - it will handle merging
+        updateDiaryEntries(allEntries);
+      } else {
+        setError("No more diary entries found.");
       }
-    } catch (error) {
-      console.error('Error loading more diary entries:', error);
+    } catch (err) {
+      console.error('Error loading more diary entries:', err);
+      setError("Failed to load more diary entries. Please try again later.");
     } finally {
-      setIsLoadingMore(false);
+      setLoadingMore(false);
+    }
+  };
+
+  // Function to refresh diary entries
+  const handleRefresh = async () => {
+    setError(null);
+    try {
+      await refreshAgentData();
+    } catch (err) {
+      console.error('Error refreshing diary entries:', err);
+      setError("Failed to refresh diary entries.");
     }
   };
   
@@ -197,11 +249,30 @@ export function DiaryTimeline() {
   
   return (
     <div className="p-3 sm:p-4">
-      <h2 className="text-lg sm:text-xl font-semibold mb-4 sm:mb-6 flex items-center">
-        <Calendar className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-        Memory Timeline
-        {isDiaryLoading && <span className="ml-2 text-sm text-muted-foreground">(Loading...)</span>}
-      </h2>
+      <div className="flex justify-between items-center mb-4 sm:mb-6">
+        <h2 className="text-lg sm:text-xl font-semibold flex items-center">
+          <Calendar className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+          Memory Timeline
+          {isDiaryLoading && <span className="ml-2 text-sm text-muted-foreground">(Loading...)</span>}
+        </h2>
+
+        {!isDiaryLoading && currentAgent && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={isLoading || isDiaryLoading}
+          >
+            <RefreshCw className="h-3 w-3 mr-1" /> Refresh
+          </Button>
+        )}
+      </div>
+      
+      {error && (
+        <div className="mb-4 p-2 text-sm text-amber-800 bg-amber-50 dark:bg-amber-950 dark:text-amber-300 rounded-md">
+          {error}
+        </div>
+      )}
       
       <div className="mt-4 sm:mt-6">
         {isDiaryLoading ? (
@@ -216,7 +287,7 @@ export function DiaryTimeline() {
           <>
             {sortedDiaryEntries.map((entry, index) => (
               <DiaryEntry 
-                key={`entry-${index}-${entry.round}`}
+                key={`entry-${entry.round}-${entry.timestamp}`}
                 entry={entry} 
                 isFirst={index === 0} 
               />
@@ -228,9 +299,9 @@ export function DiaryTimeline() {
                 variant="outline" 
                 size="sm" 
                 onClick={handleLoadMore}
-                disabled={isLoadingMore}
+                disabled={loadingMore}
               >
-                {isLoadingMore ? (
+                {loadingMore ? (
                   <><RefreshCw className="h-4 w-4 mr-2 animate-spin" /> Loading more entries...</>
                 ) : (
                   <>Load earlier entries</>

@@ -3,7 +3,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useAgentData, DiaryEntry } from '@/lib/hooks/useAgentData';
 import { useArtifacts, Artifact } from '@/lib/hooks/useArtifacts';
-import { DEFAULT_AGENT_ADDRESS } from '@/lib/hooks/useAgentData';
 
 // Types for the Swan data structures
 export type Agent = {
@@ -19,20 +18,22 @@ export type Agent = {
   diaryEntries: DiaryEntry[];
 };
 
-// Define the shape of our context
-type SwanContextType = {
+// First update the SwanContextType interface to include refreshAgentData
+export interface SwanContextType {
+  // Current state
   agents: Agent[];
   currentAgent: Agent | null;
+  currentAgentAddress: string | null;
   isLoading: boolean;
-  isArtifactsLoading: boolean;
   isDiaryLoading: boolean;
+  isArtifactsLoading: boolean;
   error: string | null;
-  selectAgent: (agentId: string) => void;
+  
+  // Actions
+  selectAgent: (address: string) => void;
   refreshAgentData: () => Promise<void>;
-  loadAgentByAddress: (address: string) => void;
-  currentAgentAddress: string;
-  setDiaryEntries: (entries: DiaryEntry[]) => void;
-};
+  updateDiaryEntries: (diaryEntries: DiaryEntry[]) => void;
+}
 
 // Create the context
 const SwanContext = createContext<SwanContextType | undefined>(undefined);
@@ -42,193 +43,167 @@ export const SwanProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [agents, setAgents] = useState<Agent[]>([]);
   const [currentAgent, setCurrentAgent] = useState<Agent | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [currentAgentAddress, setCurrentAgentAddress] = useState<string>(DEFAULT_AGENT_ADDRESS);
+  const [currentAgentAddress, setCurrentAgentAddress] = useState<string | null>(null);
 
-  // Use our custom hooks to fetch data from the blockchain
-  const { data: agentData, isLoading: isAgentLoading, error: agentError, isFetching: isAgentFetching } = useAgentData(currentAgentAddress);
-  const { data: artifacts, isLoading: isArtifactsLoadingState, error: artifactsError } = useArtifacts(currentAgentAddress);
+  // Use our custom hooks to fetch data from the blockchain only when an address is specified
+  const { 
+    data: agentData, 
+    isLoading: isAgentLoading, 
+    isFetching: isAgentFetching,
+    refetch: refetchAgentData
+  } = useAgentData(currentAgentAddress || undefined);
+  
+  const { 
+    data: artifacts, 
+    isLoading: isArtifactsLoadingState, 
+    refetch: refetchArtifacts
+  } = useArtifacts(currentAgentAddress || undefined);
 
   // Track specific loading states
-  const isLoading = isAgentLoading;
-  const isDiaryLoading = isAgentFetching && !isAgentLoading;
+  const isLoading = isAgentLoading || isAgentFetching;
   const isArtifactsLoading = isArtifactsLoadingState;
+  const isDiaryLoading = isAgentLoading; // Diaries are loaded with agent data
 
-  // Update agent basic info as soon as it's available
+  // Update agent data when it changes
   useEffect(() => {
-    console.log("Agent data update:", { agentData, isAgentLoading });
-    
-    // Proceed if we have agent data, regardless of artifacts
-    if (agentData && !isAgentLoading) {
-      try {
-        console.log("Processing agent data:", agentData);
-        
-        // Format the treasury value - make sure it's a string to handle large numbers correctly
-        const treasuryStr = agentData.treasury.toString();
-        // Convert to ETH format (divide by 10^18) and round to 4 decimal places for display
-        const treasuryEth = (Number(treasuryStr) / 1e18).toFixed(4);
-        
-        // Make sure we have diary entries
-        const diaryEntries = agentData.diaryEntries || [];
-        console.log("Diary entries:", diaryEntries.length, diaryEntries);
-        
-        // Convert blockchain data to our Agent type
-        const agent: Agent = {
-          id: agentData.address,
-          address: agentData.address,
-          name: agentData.name || "Unknown Agent",
-          description: agentData.description || "No description available",
-          createdAt: new Date(agentData.createdAt * 1000), // Convert from timestamp to Date
-          treasury: treasuryEth,
-          listingFee: 5, // Default for now
-          currentRound: agentData.round,
-          artifacts: [], // Initialize with empty array, will be updated later
-          diaryEntries: diaryEntries, // Ensure we set diary entries from agentData
-        };
-
-        console.log("Created agent object:", agent);
-        
-        // Update the agents list, replacing any existing agent with the same address
-        setAgents(prevAgents => {
-          const existingIndex = prevAgents.findIndex(a => a.address === agent.address);
-          if (existingIndex >= 0) {
-            const newAgents = [...prevAgents];
-            newAgents[existingIndex] = agent;
-            return newAgents;
-          } else {
-            return [...prevAgents, agent];
-          }
-        });
-        
-        // Set as current agent if it matches the currentAgentAddress
-        if (agent.address === currentAgentAddress) {
-          setCurrentAgent(agent);
-        }
-        
-        setError(null);
-      } catch (err: unknown) {
-        console.error('Error processing agent data:', err);
-        const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-        setError(`Failed to process agent data: ${errorMessage}`);
+    if (agentData && !isLoading) {
+      // Convert to proper Agent type
+      const agent: Agent = {
+        id: agentData.address,
+        address: agentData.address,
+        name: agentData.name,
+        description: agentData.description,
+        createdAt: new Date(agentData.createdAt * 1000),
+        treasury: agentData.treasury,
+        listingFee: 5, // Default listing fee
+        currentRound: agentData.round,
+        artifacts: currentAgent?.artifacts || [],
+        // Preserve existing diary entries if we have more than what's in agentData
+        // This prevents losing entries loaded via "load more"
+        diaryEntries: currentAgent && currentAgent.diaryEntries.length > agentData.diaryEntries.length
+          ? currentAgent.diaryEntries
+          : agentData.diaryEntries,
+      };
+      
+      // Only update if the data actually changed
+      // Check if we already have this agent with the same data to prevent infinite updates
+      if (!currentAgent || 
+          currentAgent.address !== agent.address || 
+          currentAgent.currentRound !== agent.currentRound ||
+          (currentAgent.diaryEntries.length < agent.diaryEntries.length)) {
+        console.log(`Agent data changed, updating state (diary entries: ${agent.diaryEntries.length})`);
+        // Update the current agent state
+        setCurrentAgent(agent);
       }
     }
-  }, [agentData, isAgentLoading, currentAgentAddress]);
+  }, [agentData, isLoading, currentAgent]);
 
-  // Update artifacts when they become available
+  // Update artifacts when they change
   useEffect(() => {
-    console.log("Artifacts update:", { artifacts, isArtifactsLoadingState });
-    
-    // Only update artifacts if we already have an agent and artifacts data
-    if (artifacts && currentAgent && !isArtifactsLoadingState) {
-      try {
-        // Create a fresh artifacts array to avoid reference issues
-        const newArtifacts = [...artifacts];
-        
-        // Update the current agent with the new artifacts, only if they've changed
-        setCurrentAgent(prevAgent => {
-          if (!prevAgent) return null;
-          
-          // Check if artifacts have actually changed before updating
-          if (JSON.stringify(prevAgent.artifacts) === JSON.stringify(newArtifacts)) {
-            return prevAgent; // No change, return the previous agent to avoid re-render
-          }
-          
-          return {
-            ...prevAgent,
-            artifacts: newArtifacts
-          };
-        });
-        
-        // Also update in the agents list
-        setAgents(prevAgents => {
-          return prevAgents.map(agent => {
-            if (agent.address === currentAgentAddress) {
-              // Check if artifacts have actually changed before updating
-              if (JSON.stringify(agent.artifacts) === JSON.stringify(newArtifacts)) {
-                return agent; // No change, return the previous agent to avoid re-render
-              }
-              
-              return {
-                ...agent,
-                artifacts: newArtifacts
-              };
-            }
-            return agent;
-          });
-        });
-      } catch (err: unknown) {
-        console.error('Error updating artifacts:', err);
+    if (artifacts && currentAgent) {
+      // Deep comparison to check if artifacts actually changed
+      const hasArtifactsChanged = 
+        currentAgent.artifacts.length !== artifacts.length ||
+        JSON.stringify(currentAgent.artifacts) !== JSON.stringify(artifacts);
+      
+      if (hasArtifactsChanged) {
+        console.log('Artifacts changed, updating agent state');
+        setCurrentAgent(prev => prev ? {
+          ...prev,
+          artifacts: artifacts
+        } : null);
       }
     }
-  }, [artifacts, isArtifactsLoadingState]);
-
-  // Set error if any of our data fetching failed
-  useEffect(() => {
-    if (agentError || artifactsError) {
-      setError(agentError?.message || artifactsError?.message || 'Unknown error occurred');
-    }
-  }, [agentError, artifactsError]);
-
-  // Function to select an agent
-  const selectAgent = (agentId: string) => {
-    const agent = agents.find(a => a.id === agentId);
-    if (agent) {
-      setCurrentAgent(agent);
-      setCurrentAgentAddress(agent.address);
-    } else {
-      setError(`Agent with ID ${agentId} not found`);
-    }
-  };
-
-  // Function to load an agent by address
-  const loadAgentByAddress = (address: string) => {
-    console.log(`Loading agent with address: ${address}`);
-    setCurrentAgentAddress(address);
-    // The useEffect will handle updating the currentAgent when data is loaded
-  };
+  }, [artifacts, currentAgent]);
 
   // Function to refresh agent data
   const refreshAgentData = async () => {
-    // This will trigger a refetch since we're using React Query
-    return Promise.resolve();
+    if (currentAgentAddress) {
+      try {
+        await Promise.all([
+          refetchAgentData(),
+          refetchArtifacts()
+        ]);
+      } catch (error) {
+        console.error('Error refreshing agent data:', error);
+        setError('Failed to refresh agent data');
+      }
+    }
+  };
+
+  // Function to select an agent
+  const selectAgent = (address: string) => {
+    // Only update if the address is different, prevents infinite loops
+    if (currentAgentAddress !== address) {
+      setCurrentAgentAddress(address);
+    }
+    // The useEffect will handle updating the currentAgent when data is loaded
   };
 
   // Function to update diary entries (useful for loading more)
   const setDiaryEntries = (entries: DiaryEntry[]) => {
     if (!currentAgent) return;
     
-    // Update the current agent with new diary entries
+    console.log(`SwanProvider: Updating diary entries from ${currentAgent.diaryEntries.length} to ${entries.length}`);
+    
+    // Create a Map to ensure uniqueness by round
+    const entriesMap = new Map<number, DiaryEntry>();
+    
+    // Add existing entries to the map first
+    for (const entry of currentAgent.diaryEntries) {
+      entriesMap.set(entry.round, entry);
+    }
+    
+    // Add new entries to the map (will overwrite if same round)
+    for (const entry of entries) {
+      entriesMap.set(entry.round, entry);
+    }
+    
+    // Convert map back to array and sort by round
+    const mergedEntries = Array.from(entriesMap.values());
+    
+    console.log(`SwanProvider: Final merged entries: ${mergedEntries.length} with rounds: ${mergedEntries.map(e => e.round).sort((a, b) => b - a).join(', ')}`);
+    
+    // Create a new agent object with the updated entries
     const updatedAgent = {
       ...currentAgent,
-      diaryEntries: entries
+      diaryEntries: mergedEntries // Use merged entries with duplicates removed
     };
     
-    // Update current agent
+    // Update current agent with the new agent object
     setCurrentAgent(updatedAgent);
     
     // Also update in the agents list
     setAgents(prevAgents => {
-      return prevAgents.map(agent => 
+      const updatedAgents = prevAgents.map(agent => 
         agent.id === currentAgent.id ? updatedAgent : agent
       );
+      
+      console.log(`SwanProvider: Updated agents list with ${mergedEntries.length} diary entries`);
+      return updatedAgents;
     });
   };
 
-  // Context value
-  const value = {
-    agents,
-    currentAgent,
-    isLoading,
-    isArtifactsLoading,
-    isDiaryLoading,
-    error,
-    selectAgent,
-    refreshAgentData,
-    loadAgentByAddress,
-    currentAgentAddress,
-    setDiaryEntries
-  };
-
-  return <SwanContext.Provider value={value}>{children}</SwanContext.Provider>;
+  // Then update the provider value in the return statement
+  return (
+    <SwanContext.Provider value={{
+      // Current state
+      agents,
+      currentAgent,
+      currentAgentAddress,
+      isLoading,
+      isDiaryLoading,
+      isArtifactsLoading,
+      error,
+      
+      // Actions
+      selectAgent,
+      refreshAgentData,
+      updateDiaryEntries: setDiaryEntries,
+    }}>
+      {children}
+    </SwanContext.Provider>
+  );
 };
 
 // Custom hook to use the context

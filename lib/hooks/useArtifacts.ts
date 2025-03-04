@@ -10,7 +10,6 @@ import {
   SWAN_ARTIFACT_ABI,
   SWAN_AGENT_ABI
 } from '@/lib/contracts';
-import { DEFAULT_AGENT_ADDRESS } from './useAgentData';
 
 // Flag to determine if we should show contract errors or suppress them
 const DEVELOPMENT_MODE = process.env.NODE_ENV === 'development';
@@ -172,10 +171,16 @@ export async function fetchArtifactsForRounds(
   return artifacts;
 }
 
-export function useArtifacts(agentAddress = DEFAULT_AGENT_ADDRESS) {
+// Update the useArtifacts hook to accept optional address
+export function useArtifacts(agentAddress?: string) {
   return useQuery({
     queryKey: ['artifacts', agentAddress],
     queryFn: async (): Promise<Artifact[]> => {
+      // If no agent address is provided, return empty array
+      if (!agentAddress) {
+        return [];
+      }
+      
       try {
         try {
           console.log(`Fetching artifacts for agent: ${agentAddress}`);
@@ -295,18 +300,28 @@ export function useArtifacts(agentAddress = DEFAULT_AGENT_ADDRESS) {
         return mockArtifacts.sort((a, b) => b.round - a.round);
       }
     },
+    // Only run the query if we have an agent address
+    enabled: !!agentAddress,
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }
 
-// Hook to load more artifacts on demand
+// Update the useLoadMoreArtifacts hook to accept optional address
 export function useLoadMoreArtifacts(
-  agentAddress = DEFAULT_AGENT_ADDRESS,
+  agentAddress?: string,
   searchRange: { startRound: number, endRound: number } | null = null
 ) {
   return useInfiniteQuery({
     queryKey: ['infinite-artifacts', agentAddress, searchRange],
-    queryFn: async ({ pageParam = { startRound: 0, endRound: 0, currentRound: 0 } }) => {
+    queryFn: async ({ pageParam }) => {
+      // If no agent address is provided, return empty results
+      if (!agentAddress) {
+        return { 
+          artifacts: [], 
+          pageParam: { startRound: 0, endRound: 0, currentRound: 0 }
+        };
+      }
+      
       console.log(`Loading more artifacts: ${JSON.stringify(pageParam)}`);
       
       try {
@@ -392,6 +407,8 @@ export function useLoadMoreArtifacts(
       };
     },
     initialPageParam: { startRound: 0, endRound: 0, currentRound: 0 },
+    // Only run the query if we have an agent address
+    enabled: !!agentAddress,
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 } 

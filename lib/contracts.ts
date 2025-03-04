@@ -1,5 +1,6 @@
 export const SWAN_CONTRACT_ADDRESS = '0x10DBC8eD4a7173a342C5975B8DDA13D15D128870';
 export const LLM_ORACLE_COORDINATOR_ADDRESS = '0x01547c5E13Fd80EA6f3b7811acDA51Cf3989f832';
+export const SWAN_AGENT_FACTORY_ADDRESS = '0x8D7DfC92613AAc6a0A8f89dD0ED3e52C0C83f3c3';
 
 // ABI for the main Swan contract
 export const SWAN_ABI = [
@@ -104,4 +105,21 @@ export const SWAN_ARTIFACT_ABI = [
   {"inputs":[],"name":"symbol","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},
   {"inputs":[],"name":"description","outputs":[{"internalType":"bytes","name":"","type":"bytes"}],"stateMutability":"view","type":"function"},
   {"inputs":[],"name":"createdAt","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"}
+] as const;
+
+// ABI for SwanAgentFactory
+export const SWAN_AGENT_FACTORY_ABI = [
+  {
+    "inputs": [
+      {"internalType": "string", "name": "_name", "type": "string"},
+      {"internalType": "string", "name": "_description", "type": "string"},
+      {"internalType": "uint96", "name": "_listingFee", "type": "uint96"},
+      {"internalType": "uint256", "name": "_amountPerRound", "type": "uint256"},
+      {"internalType": "address", "name": "_owner", "type": "address"}
+    ],
+    "name": "deploy",
+    "outputs": [{"internalType": "contract SwanAgent", "name": "", "type": "address"}],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
 ] as const; 
