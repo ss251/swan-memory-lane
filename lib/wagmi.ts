@@ -4,7 +4,7 @@ import { base } from 'wagmi/chains';
 // Multiple RPC providers for Base with fallbacks
 const BASE_RPC_URLS = [
   // Primary provider - Alchemy (more reliable)
-  `https://base-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`,
+  `https://base-mainnet.g.alchemy.com/v2/${process.env.NEXT_PUBLIC_ALCHEMY_API_KEY}`,
   // Fallback public providers
   'https://1rpc.io/base',                 // 1RPC
   'https://base-rpc.publicnode.com',      // PublicNode
