@@ -15,24 +15,14 @@ const diaryStyles = `
   }
   
   .diary-section {
-    margin-bottom: 1rem;
-    border-left: 3px solid #e2e8f0;
-    padding-left: 0.75rem;
-    transition: all 0.2s ease;
-  }
-  
-  .dark .diary-section {
-    border-left-color: #334155;
-  }
-  
-  .diary-section:hover {
-    border-left-color: #3b82f6;
+    margin-bottom: 1.25rem;
+    padding-bottom: 0.5rem;
   }
   
   .diary-section-header {
     display: flex;
     align-items: center;
-    font-size: 0.85rem;
+    font-size: 0.95rem;
     font-weight: 600;
     margin-bottom: 0.5rem;
     color: #475569;
@@ -46,11 +36,12 @@ const diaryStyles = `
   
   .diary-section-icon {
     margin-right: 0.5rem;
-    font-size: 1rem;
+    font-size: 0.9rem;
   }
   
   .diary-section-content {
     font-size: 0.9rem;
+    padding-left: 0.25rem;
   }
   
   .diary-section-content p {
