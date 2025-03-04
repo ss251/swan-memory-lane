@@ -30,6 +30,7 @@ export interface DiaryEntry {
   timestamp: string;
   round: number;
   sentiment?: 'positive' | 'neutral' | 'negative';
+  arweaveId?: string;
 }
 
 export function useAgentData(agentAddress?: string) {
@@ -335,17 +336,25 @@ async function fetchDiaryEntry(agentAddress: string, round: number): Promise<Dia
       }
       
       // Step 3: Parse JSON if possible to extract Arweave TX ID
-      let arweaveTxId: string | null = null;
+      let arweaveTxId: string | undefined;
       let content = rawContent;
       
       try {
         if (typeof rawContent === 'string' && (rawContent.startsWith('{') || rawContent.startsWith('['))) {
           const parsed = JSON.parse(rawContent);
           
-          // Extract Arweave TX ID
+          // Extract Arweave TX ID - check both arweave and arweaveId fields
           if (parsed.arweave) {
             arweaveTxId = parsed.arweave;
-            console.log(`Found Arweave TX ID: ${arweaveTxId}`);
+            console.log(`Found Arweave TX ID from arweave field: ${arweaveTxId}`);
+          } else if (parsed.arweaveId) {
+            arweaveTxId = parsed.arweaveId;
+            console.log(`Found Arweave TX ID from arweaveId field: ${arweaveTxId}`);
+          }
+          
+          // If we have content field in JSON, use that
+          if (parsed.content) {
+            content = parsed.content;
           }
         }
       } catch (jsonError) {
@@ -381,7 +390,8 @@ async function fetchDiaryEntry(agentAddress: string, round: number): Promise<Dia
         content,
         timestamp: new Date().toISOString(),
         round,
-        sentiment: getSentiment(typeof content === 'string' ? content : ''),
+        sentiment: getSentiment(content),
+        arweaveId: arweaveTxId
       };
     } catch (error) {
       const err = error as Error;
@@ -445,22 +455,16 @@ function extractRelevantContent(fullContent: string): string {
 
 // Simple sentiment analysis function
 function getSentiment(text: string): 'positive' | 'neutral' | 'negative' {
+  const lowerText = text.toLowerCase();
   const positiveWords = ['breakthrough', 'success', 'positive', 'great', 'excellent', 'good', 'gain', 'profit', 'up'];
   const negativeWords = ['loss', 'negative', 'bad', 'failure', 'poor', 'down', 'volatility', 'decrease', 'adjust'];
   
-  const lowerText = text.toLowerCase();
-  let positive = 0;
-  let negative = 0;
+  const positiveScore = positiveWords.reduce((score, word) => 
+    score + (lowerText.includes(word) ? 1 : 0), 0);
+  const negativeScore = negativeWords.reduce((score, word) => 
+    score + (lowerText.includes(word) ? 1 : 0), 0);
   
-  positiveWords.forEach(word => {
-    if (lowerText.includes(word)) positive++;
-  });
-  
-  negativeWords.forEach(word => {
-    if (lowerText.includes(word)) negative++;
-  });
-  
-  if (positive > negative) return 'positive';
-  if (negative > positive) return 'negative';
+  if (positiveScore > negativeScore) return 'positive';
+  if (negativeScore > positiveScore) return 'negative';
   return 'neutral';
 } 

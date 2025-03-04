@@ -3,8 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { useSwanContext } from '@/lib/providers/SwanProvider';
 import { DiaryEntry as DiaryEntryType, fetchMoreDiaryEntries } from '@/lib/hooks/useAgentData';
-import { formatDate, getSentimentColor } from '@/lib/utils';
-import { Calendar, CalendarDays, ChevronDown, ChevronUp, Heart, Clock, RefreshCw } from 'lucide-react';
+import { getSentimentColor } from '@/lib/utils';
+import { Calendar, CalendarDays, ChevronDown, ChevronUp, Heart, Clock, RefreshCw, ExternalLink } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { Button } from "@/components/ui/button";
@@ -61,9 +61,21 @@ const DiaryEntry = ({ entry, isFirst }: { entry: DiaryEntryType; isFirst: boolea
         <div className="flex flex-wrap items-center mb-2 gap-2">
           <div className="flex items-center">
             <CalendarDays className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2 text-muted-foreground" />
-            <span className="text-xs sm:text-sm text-muted-foreground">
-              {formatDate(entry.timestamp)}
-            </span>
+            {entry.arweaveId ? (
+              <a 
+                href={`https://arweave.net/${entry.arweaveId}`}
+                target="_blank"
+                rel="noopener noreferrer" 
+                className="text-xs sm:text-sm text-primary hover:text-primary/80 hover:underline flex items-center"
+              >
+                View on Arweave
+                <ExternalLink className="h-3 w-3 ml-1" />
+              </a>
+            ) : (
+              <span className="text-xs sm:text-sm text-muted-foreground">
+                Not yet on Arweave
+              </span>
+            )}
           </div>
           
           <div className={cn(
