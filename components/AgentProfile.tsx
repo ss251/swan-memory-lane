@@ -18,7 +18,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { useSwanContext } from '@/lib/providers/SwanProvider';
-import { formatDate, truncateString } from '@/lib/utils';
+import { formatDate, truncateString, formatEth } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 
 // Function to parse and format agent description
@@ -280,7 +280,7 @@ export function AgentProfile({ agentAddress }: { agentAddress?: string }) {
             <InfoCard 
               icon={<Wallet className="h-4 w-4 text-green-500" />}
               label="Treasury"
-              value={`${currentAgent.treasury} ETH`}
+              value={formatEth(currentAgent.treasury)}
               colorClass="bg-green-500/10"
             />
             

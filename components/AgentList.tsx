@@ -7,9 +7,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatDistanceToNow } from 'date-fns';
-import { formatEther } from 'viem';
-import { ArrowUpRight, BrainCircuit, CoinsIcon, LayersIcon, RefreshCw } from 'lucide-react';
+import { ArrowUpRight, BrainCircuit, LayersIcon, RefreshCw, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { formatEth } from '@/lib/utils';
 
 export const AgentList = () => {
   const { data: agents, isLoading, error, refetch } = useAgents();
@@ -128,8 +128,8 @@ export const AgentList = () => {
                     </div>
                     
                     <div className="flex items-center gap-1.5 text-sm">
-                      <CoinsIcon className="h-4 w-4 text-muted-foreground" />
-                      <span>{parseFloat(formatEther(BigInt(agent.treasury || '0'))).toFixed(4)} ETH</span>
+                      <Wallet className="h-4 w-4 text-muted-foreground" />
+                      <span>{formatEth(agent.treasury)}</span>
                     </div>
                     
                     <div className="flex items-center gap-1.5 text-sm col-span-2">

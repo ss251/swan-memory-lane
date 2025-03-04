@@ -115,4 +115,33 @@ export function getSentimentColor(sentiment: number | 'positive' | 'neutral' | '
   if (sentiment < -0.3) return '#ef4444'; // Red
   if (sentiment > 0.3) return '#22c55e';  // Green
   return '#eab308';  // Yellow
+}
+
+/**
+ * Format Wei value to ETH with appropriate decimals
+ */
+export function formatEth(weiValue: string | number | bigint): string {
+  try {
+    // Convert to BigInt if not already
+    const wei = BigInt(weiValue.toString());
+    
+    // Convert Wei to ETH (1 ETH = 10^18 Wei)
+    const ethValue = Number(wei) / 1e18;
+    
+    // Format based on size
+    if (ethValue < 0.000001) {
+      return '< 0.000001 ETH';
+    }
+    
+    // For small numbers, show more decimals
+    if (ethValue < 0.1) {
+      return `${ethValue.toFixed(6)} ETH`;
+    }
+    
+    // For larger numbers, show fewer decimals
+    return `${ethValue.toFixed(4)} ETH`;
+  } catch (e) {
+    console.error('Error formatting ETH value:', e);
+    return '0 ETH';
+  }
 } 
