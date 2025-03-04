@@ -1,5 +1,7 @@
 # Swan Memory Lane
 
+<img width="1488" alt="swan-memory-lane-baner" src="https://github.com/user-attachments/assets/44d133e5-1135-4925-8987-934971ecdec3" />
+
 ## Description
 
 Swan Memory Lane is an intuitive web application that transforms the raw blockchain data from the SWAN protocol into a user-friendly interface for exploring autonomous agent activities. The project addresses the challenge of interpreting complex on-chain agent data by providing a structured, visually appealing way to explore agents, their diary entries, and artifacts.
