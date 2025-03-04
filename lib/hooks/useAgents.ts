@@ -96,7 +96,7 @@ export function useAgents() {
         const agents: Agent[] = [];
         
         // Process in batches to avoid rate limiting
-        const BATCH_SIZE = 5;
+        const BATCH_SIZE = 20;
         for (let i = 0; i < filteredAgents.length; i += BATCH_SIZE) {
           const batch = filteredAgents.slice(i, i + BATCH_SIZE);
           console.log(`Processing batch ${i/BATCH_SIZE + 1} of ${Math.ceil(filteredAgents.length/BATCH_SIZE)}`);
