@@ -5,6 +5,7 @@ const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://swan-memory-lane.v
 
 // Image URLs
 const ICON_IMG = `${BASE_URL}/images/swan-icon.svg`;
+const LOGO_IMG = `${BASE_URL}/images/swan-icon.png`;
 
 export async function GET() {
   const config = {
@@ -16,7 +17,7 @@ export async function GET() {
     frame: {
       version: "1",
       name: "Swan Memory Lane",
-      iconUrl: ICON_IMG,
+      iconUrl: LOGO_IMG,
       homeUrl: BASE_URL,
       imageUrl: ICON_IMG,
       buttonTitle: "View Timeline",
