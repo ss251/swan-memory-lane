@@ -4,7 +4,6 @@ import { NextResponse } from 'next/server';
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://swan-memory-lane.vercel.app';
 
 // Image URLs
-const BANNER_IMG = `${BASE_URL}/images/swan-banner.svg`;
 const ICON_IMG = `${BASE_URL}/images/swan-icon.svg`;
 
 export async function GET() {
@@ -19,9 +18,9 @@ export async function GET() {
       name: "Swan Memory Lane",
       iconUrl: ICON_IMG,
       homeUrl: BASE_URL,
-      imageUrl: BANNER_IMG,
+      imageUrl: ICON_IMG,
       buttonTitle: "View Timeline",
-      splashImageUrl: BANNER_IMG,
+      splashImageUrl: ICON_IMG,
       splashBackgroundColor: "#Caf0f8",
       webhookUrl: `${BASE_URL}/api/webhook`
     }
